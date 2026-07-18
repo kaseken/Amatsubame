@@ -1,0 +1,24 @@
+name: Run SwiftFormat
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  swiftformat:
+    name: SwiftFormat
+    runs-on: ubuntu-latest
+    env:
+      SWIFTFORMAT_VERSION: "0.61.1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install SwiftFormat
+        env:
+          SWIFTFORMAT_SHA256: "7bc8706e3fd51963f1f29eb99098ebdf482f3497fa527c68e6cf75cbee29c77a"
+        run: |
+          curl -L "https://github.com/nicklockwood/SwiftFormat/releases/download/${SWIFTFORMAT_VERSION}/swiftformat_linux.zip" -o swiftformat.zip
+          echo "${SWIFTFORMAT_SHA256}  swiftformat.zip" | sha256sum -c
+          unzip swiftformat.zip -d swiftformat
+          chmod +x swiftformat/swiftformat_linux
+          sudo mv swiftformat/swiftformat_linux /usr/local/bin/swiftformat
+      - name: Check formatting
+        run: swiftformat --lint Sources/

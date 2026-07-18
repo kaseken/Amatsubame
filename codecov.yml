@@ -1,0 +1,5 @@
+comment:
+  layout: "reach,diff,files"
+  require_changes: false
+github_checks:
+  annotations: true
