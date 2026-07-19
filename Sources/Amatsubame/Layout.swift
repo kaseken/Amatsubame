@@ -22,8 +22,18 @@ struct DisplayItem {
 ///
 /// Lays text out word by word, wrapping at the canvas edge and aligning words of
 /// differing sizes to a shared baseline, following browser.engineering Chapter 3.
-struct Layout {
-    private var displayList: [DisplayItem] = []
+func layout(_ tokens: [Token]) -> [DisplayItem] {
+    var engine = LayoutEngine()
+    for token in tokens {
+        engine.token(token)
+    }
+    engine.commitLine()
+    return engine.displayList
+}
+
+/// Mutable cursor state driving ``layout(_:)``; not used directly by callers.
+private struct LayoutEngine {
+    var displayList: [DisplayItem] = []
     private var cursorX = LayoutMetrics.horizontalStep
     private var cursorY = LayoutMetrics.verticalStep
     private var weight: NSFont.Weight = .regular
@@ -33,16 +43,7 @@ struct Layout {
     /// Words on the current line awaiting baseline alignment by ``commitLine()``.
     private var line: [(x: Double, word: String, font: NSFont)] = []
 
-    static func run(_ tokens: [Token]) -> [DisplayItem] {
-        var layout = Layout()
-        for token in tokens {
-            layout.token(token)
-        }
-        layout.commitLine()
-        return layout.displayList
-    }
-
-    private mutating func token(_ tok: Token) {
+    mutating func token(_ tok: Token) {
         switch tok {
         case let .text(text):
             for word in text.split(whereSeparator: \.isWhitespace) {
@@ -77,7 +78,7 @@ struct Layout {
         cursorX += width + font.width(of: " ")
     }
 
-    private mutating func commitLine() {
+    mutating func commitLine() {
         guard !line.isEmpty else { return }
         let maxAscent = line.map(\.font.ascender).max() ?? 0
         let baseline = cursorY + 1.25 * maxAscent
