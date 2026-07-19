@@ -29,10 +29,14 @@ final class CanvasView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
-        if event.specialKey == .downArrow {
+        switch event.specialKey {
+        case .downArrow:
             scroll += scrollStep
             needsDisplay = true
-        } else {
+        case .upArrow:
+            scroll = max(0, scroll - scrollStep)
+            needsDisplay = true
+        default:
             super.keyDown(with: event)
         }
     }
