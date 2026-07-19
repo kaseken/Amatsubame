@@ -1,14 +1,5 @@
 import AppKit
 
-enum LayoutMetrics {
-    static let canvasWidth = 800.0
-    static let canvasHeight = 600.0
-    static let horizontalEdgeMargin = 13.0
-    static let verticalEdgeMargin = 18.0
-    static let scrollStep = 100.0
-    static let defaultFontSize = 16.0
-}
-
 struct DisplayItem {
     let x: Double
     let y: Double
@@ -19,12 +10,19 @@ struct DisplayItem {
 /// Lays text out word by word, wrapping at the canvas edge and aligning words of
 /// differing sizes to a shared baseline, following browser.engineering Chapter 3.
 struct Layout {
+    static let canvasWidth = 800.0
+    static let canvasHeight = 600.0
+    static let horizontalEdgeMargin = 13.0
+    static let verticalEdgeMargin = 18.0
+    static let scrollStep = 100.0
+    private static let defaultFontSize = 16.0
+
     private(set) var displayList: [DisplayItem] = []
-    private var cursorX = LayoutMetrics.horizontalEdgeMargin
-    private var cursorY = LayoutMetrics.verticalEdgeMargin
+    private var cursorX = Layout.horizontalEdgeMargin
+    private var cursorY = Layout.verticalEdgeMargin
     private var fontWeight: NSFont.Weight = .regular
     private var isFontItalic = false
-    private var fontSize = LayoutMetrics.defaultFontSize
+    private var fontSize = Layout.defaultFontSize
 
     /// Words on the current line awaiting baseline alignment by ``commitLine()``.
     private var line: [(x: Double, word: String, font: NSFont)] = []
@@ -56,7 +54,7 @@ struct Layout {
             case .paragraphOpen: break
             case .paragraphClose:
                 commitLine()
-                cursorY += LayoutMetrics.verticalEdgeMargin
+                cursorY += Layout.verticalEdgeMargin
             case .other: break
             }
         }
@@ -65,7 +63,7 @@ struct Layout {
     private mutating func word(_ word: String) {
         let font = Fonts.get(size: fontSize, weight: fontWeight, italic: isFontItalic)
         let wordWidth = font.width(of: word)
-        if cursorX + wordWidth + LayoutMetrics.horizontalEdgeMargin > LayoutMetrics.canvasWidth {
+        if cursorX + wordWidth + Layout.horizontalEdgeMargin > Layout.canvasWidth {
             commitLine()
         }
         line.append((x: cursorX, word: word, font: font))
@@ -82,7 +80,7 @@ struct Layout {
         }
         let maxDescent = line.map(\.font.descent).max() ?? 0
         cursorY = baseline + 1.25 * maxDescent
-        cursorX = LayoutMetrics.horizontalEdgeMargin
+        cursorX = Layout.horizontalEdgeMargin
         line = []
     }
 }

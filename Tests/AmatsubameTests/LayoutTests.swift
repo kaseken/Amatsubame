@@ -8,9 +8,9 @@ struct LayoutTests {
         #expect(list.count == 1)
         let item = try #require(list.first)
         #expect(item.text == "hello")
-        #expect(item.x == LayoutMetrics.horizontalEdgeMargin)
+        #expect(item.x == Layout.horizontalEdgeMargin)
         // Baseline pushes y below the top margin.
-        #expect(item.y >= LayoutMetrics.verticalEdgeMargin)
+        #expect(item.y >= Layout.verticalEdgeMargin)
     }
 
     @Test func `one item per word`() {
@@ -23,7 +23,7 @@ struct LayoutTests {
         // Some later word must sit on a lower line.
         #expect(list.contains { $0.y > firstY })
         // Wrapped words restart at the left margin.
-        #expect(list.contains { $0.x == LayoutMetrics.horizontalEdgeMargin && $0.y > firstY })
+        #expect(list.contains { $0.x == Layout.horizontalEdgeMargin && $0.y > firstY })
     }
 
     @Test func `bold tag yields a bold font`() throws {
@@ -56,7 +56,7 @@ struct LayoutTests {
         let first = try #require(list.first)
         let second = try #require(list.last)
         #expect(second.y > first.y)
-        #expect(second.x == LayoutMetrics.horizontalEdgeMargin)
+        #expect(second.x == Layout.horizontalEdgeMargin)
     }
 
     @Test func `mixed sizes share a baseline`() throws {

@@ -21,8 +21,8 @@ final class CanvasView: NSView {
         dirtyRect.fill()
 
         for item in displayList {
-            if item.y > scroll + LayoutMetrics.canvasHeight { continue }
-            if item.y + LayoutMetrics.verticalEdgeMargin < scroll { continue }
+            if item.y > scroll + Layout.canvasHeight { continue }
+            if item.y + Layout.verticalEdgeMargin < scroll { continue }
             let point = NSPoint(x: item.x, y: item.y - scroll)
             (item.text as NSString).draw(at: point, withAttributes: [
                 .font: item.font,
@@ -34,10 +34,10 @@ final class CanvasView: NSView {
     override func keyDown(with event: NSEvent) {
         switch event.specialKey {
         case .downArrow:
-            scroll += LayoutMetrics.scrollStep
+            scroll += Layout.scrollStep
             needsDisplay = true
         case .upArrow:
-            scroll = max(0, scroll - LayoutMetrics.scrollStep)
+            scroll = max(0, scroll - Layout.scrollStep)
             needsDisplay = true
         default:
             super.keyDown(with: event)
