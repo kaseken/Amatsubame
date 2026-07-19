@@ -15,7 +15,7 @@ enum Fonts {
 
 extension NSFont {
     /// Horizontal width of `text` when rendered in this font.
-    func measure(_ text: String) -> Double {
+    func width(of text: String) -> Double {
         (text as NSString).size(withAttributes: [.font: self]).width
     }
 

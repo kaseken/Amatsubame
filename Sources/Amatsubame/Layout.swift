@@ -69,12 +69,12 @@ struct Layout {
 
     private mutating func word(_ word: String) {
         let font = Fonts.get(size: size, weight: weight, italic: italic)
-        let width = font.measure(word)
+        let width = font.width(of: word)
         if cursorX + width > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalStep {
             flush()
         }
         line.append((x: cursorX, word: word, font: font))
-        cursorX += width + font.measure(" ")
+        cursorX += width + font.width(of: " ")
     }
 
     private mutating func flush() {
