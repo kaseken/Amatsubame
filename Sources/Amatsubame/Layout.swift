@@ -63,12 +63,12 @@ struct Layout {
 
     private mutating func word(_ word: String) {
         let font = Fonts.get(size: fontSize, weight: fontWeight, italic: isFontItalic)
-        let width = font.width(of: word)
-        if cursorX + width > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalStep {
+        let wordWidth = font.width(of: word)
+        if cursorX + wordWidth > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalStep {
             commitLine()
         }
         line.append((x: cursorX, word: word, font: font))
-        cursorX += width + font.width(of: " ")
+        cursorX += wordWidth + font.width(of: " ")
     }
 
     private mutating func commitLine() {
