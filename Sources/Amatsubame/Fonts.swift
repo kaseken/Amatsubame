@@ -19,12 +19,8 @@ extension NSFont {
         (text as NSString).size(withAttributes: [.font: self]).width
     }
 
-    /// Distance from the baseline to the top of the font.
-    var ascent: Double {
-        ascender
-    }
-
-    /// Distance from the baseline to the bottom of the font (positive).
+    /// Distance from the baseline to the bottom of the font. AppKit's `descender`
+    /// is negative; this returns a positive magnitude so callers can compare depths.
     var descent: Double {
         -descender
     }

@@ -79,10 +79,10 @@ struct Layout {
 
     private mutating func flush() {
         guard !line.isEmpty else { return }
-        let maxAscent = line.map(\.font.ascent).max() ?? 0
+        let maxAscent = line.map(\.font.ascender).max() ?? 0
         let baseline = cursorY + 1.25 * maxAscent
         for item in line {
-            let y = baseline - item.font.ascent
+            let y = baseline - item.font.ascender
             displayList.append(DisplayItem(x: item.x, y: y, text: item.word, font: item.font))
         }
         let maxDescent = line.map(\.font.descent).max() ?? 0
