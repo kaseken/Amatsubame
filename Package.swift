@@ -9,7 +9,7 @@ let package = Package(
         .testTarget(
             name: "AmatsubameTests",
             dependencies: ["Amatsubame"],
-            path: "Tests/AmatsubameTests"
+            path: "Tests/AmatsubameTests",
         ),
-    ]
+    ],
 )

@@ -1,29 +1,28 @@
+@testable import Amatsubame
 import Testing
 
-@testable import Amatsubame
-
-@Suite struct StripTagsTests {
-    @Test func plainText() {
+struct StripTagsTests {
+    @Test func `plain text`() {
         #expect(stripTags("hello world") == "hello world")
     }
 
-    @Test func singleTag() {
+    @Test func `single tag`() {
         #expect(stripTags("<b>bold</b>") == "bold")
     }
 
-    @Test func nestedTags() {
+    @Test func `nested tags`() {
         #expect(stripTags("<div><p>text</p></div>") == "text")
     }
 
-    @Test func mixedContent() {
+    @Test func `mixed content`() {
         #expect(stripTags("hello <em>world</em>!") == "hello world!")
     }
 
-    @Test func emptyBody() {
+    @Test func `empty body`() {
         #expect(stripTags("") == "")
     }
 
-    @Test func tagsOnly() {
+    @Test func `tags only`() {
         #expect(stripTags("<html><head></head></html>") == "")
     }
 }

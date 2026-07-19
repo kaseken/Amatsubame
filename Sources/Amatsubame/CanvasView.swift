@@ -12,10 +12,14 @@ final class CanvasView: NSView {
         .foregroundColor: NSColor.black,
     ]
 
-    // Top-left origin with y growing downward, matching the layout coordinates.
-    override var isFlipped: Bool { true }
+    /// Top-left origin with y growing downward, matching the layout coordinates.
+    override var isFlipped: Bool {
+        true
+    }
 
-    override var acceptsFirstResponder: Bool { true }
+    override var acceptsFirstResponder: Bool {
+        true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         NSColor.white.setFill()

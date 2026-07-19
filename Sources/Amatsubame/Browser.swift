@@ -10,7 +10,7 @@ final class Browser {
             contentRect: NSRect(x: 0, y: 0, width: width, height: height),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
-            defer: false
+            defer: false,
         )
         window.title = "Amatsubame"
         window.contentView = canvas
