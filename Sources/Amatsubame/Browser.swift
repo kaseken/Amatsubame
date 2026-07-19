@@ -7,7 +7,7 @@ final class Browser {
 
     init() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+            contentRect: NSRect(x: 0, y: 0, width: Layout.canvasWidth, height: Layout.canvasHeight),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false,
