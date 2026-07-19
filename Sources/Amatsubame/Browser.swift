@@ -7,7 +7,7 @@ final class Browser {
 
     init() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: Layout.canvasWidth, height: Layout.canvasHeight),
+            contentRect: NSRect(x: 0, y: 0, width: LayoutMetrics.canvasWidth, height: LayoutMetrics.canvasHeight),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false,
@@ -23,7 +23,7 @@ final class Browser {
         Task { @MainActor in
             do {
                 let body = try await HTTPClient().request(url)
-                canvas.displayList = layout(stripTags(body))
+                canvas.displayList = Layout.run(lex(body))
             } catch {
                 fputs("Error: \(error)\n", stderr)
             }

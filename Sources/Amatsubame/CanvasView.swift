@@ -7,11 +7,6 @@ final class CanvasView: NSView {
 
     var scroll = 0.0
 
-    private let attributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.systemFont(ofSize: 16),
-        .foregroundColor: NSColor.black,
-    ]
-
     /// Top-left origin with y growing downward, matching the layout coordinates.
     override var isFlipped: Bool {
         true
@@ -26,20 +21,23 @@ final class CanvasView: NSView {
         dirtyRect.fill()
 
         for item in displayList {
-            if item.y > scroll + Layout.canvasHeight { continue }
-            if item.y + Layout.verticalStep < scroll { continue }
+            if item.y > scroll + LayoutMetrics.canvasHeight { continue }
+            if item.y + LayoutMetrics.verticalStep < scroll { continue }
             let point = NSPoint(x: item.x, y: item.y - scroll)
-            (String(item.c) as NSString).draw(at: point, withAttributes: attributes)
+            (item.text as NSString).draw(at: point, withAttributes: [
+                .font: item.font,
+                .foregroundColor: NSColor.black,
+            ])
         }
     }
 
     override func keyDown(with event: NSEvent) {
         switch event.specialKey {
         case .downArrow:
-            scroll += Layout.scrollStep
+            scroll += LayoutMetrics.scrollStep
             needsDisplay = true
         case .upArrow:
-            scroll = max(0, scroll - Layout.scrollStep)
+            scroll = max(0, scroll - LayoutMetrics.scrollStep)
             needsDisplay = true
         default:
             super.keyDown(with: event)
