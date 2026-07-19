@@ -9,7 +9,7 @@ struct Amatsubame {
             exit(1)
         }
         do {
-            let url = try BrowserURL(args[1])
+            let url = try URL(args[1])
             let body = try await request(url)
             show(body)
         } catch {

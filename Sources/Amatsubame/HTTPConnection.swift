@@ -1,8 +1,14 @@
 import Foundation
 import Network
 
-func request(_ url: BrowserURL) async throws -> String {
-    let params: NWParameters = url.scheme == "https" ? .tls : .tcp
+private enum ConnectionError: Error {
+    case decodingFailed
+    case invalidResponse(String)
+    case cancelled
+}
+
+func request(_ url: URL) async throws -> String {
+    let params: NWParameters = url.scheme == .https ? .tls : .tcp
     let connection = NWConnection(
         host: NWEndpoint.Host(url.host),
         port: NWEndpoint.Port(integerLiteral: UInt16(url.port)),
@@ -17,10 +23,10 @@ func request(_ url: BrowserURL) async throws -> String {
     }
 
     guard let raw = String(data: responseData, encoding: .utf8) else {
-        throw BrowserError.decodingError
+        throw ConnectionError.decodingFailed
     }
     guard let sep = raw.range(of: "\r\n\r\n") else {
-        throw BrowserError.connectionFailed("no header/body separator in response")
+        throw ConnectionError.invalidResponse("no header/body separator in response")
     }
     return String(raw[sep.upperBound...])
 }
@@ -51,7 +57,7 @@ private final class Fetcher: @unchecked Sendable {
         case let .failed(error):
             finish(.failure(error))
         case .cancelled:
-            finish(.failure(BrowserError.connectionFailed("connection cancelled")))
+            finish(.failure(ConnectionError.cancelled))
         default:
             break
         }
