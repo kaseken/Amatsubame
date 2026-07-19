@@ -1,24 +1,25 @@
-import Foundation
+import AppKit
 
 @main
 struct Amatsubame {
-    static func main() async {
+    @MainActor
+    static func main() {
         let args = CommandLine.arguments
         guard args.count >= 2 else {
             fputs("Usage: Amatsubame <url>\n", stderr)
             exit(1)
         }
-        do {
-            guard let url = URL(string: args[1]) else {
-                fputs("Error: invalid URL\n", stderr)
-                exit(1)
-            }
-            let body = try await HTTPClient().request(url)
-            show(body)
-        } catch {
-            fputs("Error: \(error)\n", stderr)
+        guard let url = URL(string: args[1]) else {
+            fputs("Error: invalid URL\n", stderr)
             exit(1)
         }
+
+        let app = NSApplication.shared
+        app.setActivationPolicy(.regular)
+        let browser = Browser()
+        browser.load(url)
+        app.activate(ignoringOtherApps: true)
+        app.run()
     }
 }
 
@@ -33,8 +34,4 @@ func stripTags(_ body: String) -> String {
         }
     }
     return result
-}
-
-func show(_ body: String) {
-    print(stripTags(body))
 }
