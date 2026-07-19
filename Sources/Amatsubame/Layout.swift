@@ -44,19 +44,20 @@ struct Layout {
             }
         case let .tag(tag):
             switch tag {
-            case "b": fontWeight = .bold
-            case "/b": fontWeight = .regular
-            case "i": isFontItalic = true
-            case "/i": isFontItalic = false
-            case "small": fontSize -= 2
-            case "/small": fontSize += 2
-            case "big": fontSize += 4
-            case "/big": fontSize -= 4
-            case "br": commitLine()
-            case "/p":
+            case .boldOpen: fontWeight = .bold
+            case .boldClose: fontWeight = .regular
+            case .italicOpen: isFontItalic = true
+            case .italicClose: isFontItalic = false
+            case .smallOpen: fontSize -= 2
+            case .smallClose: fontSize += 2
+            case .bigOpen: fontSize += 4
+            case .bigClose: fontSize -= 4
+            case .lineBreak: commitLine()
+            case .paragraphOpen: break
+            case .paragraphClose:
                 commitLine()
                 cursorY += LayoutMetrics.verticalEdgeMargin
-            default: break
+            case .other: break
             }
         }
     }
@@ -64,7 +65,7 @@ struct Layout {
     private mutating func word(_ word: String) {
         let font = Fonts.get(size: fontSize, weight: fontWeight, italic: isFontItalic)
         let wordWidth = font.width(of: word)
-        if cursorX + wordWidth > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalEdgeMargin {
+        if cursorX + wordWidth + LayoutMetrics.horizontalEdgeMargin > LayoutMetrics.canvasWidth {
             commitLine()
         }
         line.append((x: cursorX, word: word, font: font))

@@ -7,15 +7,15 @@ struct LexerTests {
     }
 
     @Test func `single tag`() {
-        #expect(lex("<b>bold</b>") == [.tag("b"), .text("bold"), .tag("/b")])
+        #expect(lex("<b>bold</b>") == [.tag(.boldOpen), .text("bold"), .tag(.boldClose)])
     }
 
     @Test func `mixed content`() {
         #expect(lex("hello <em>world</em>!") == [
             .text("hello "),
-            .tag("em"),
+            .tag(.other("em")),
             .text("world"),
-            .tag("/em"),
+            .tag(.other("/em")),
             .text("!"),
         ])
     }
@@ -24,12 +24,23 @@ struct LexerTests {
         #expect(lex("").isEmpty)
     }
 
-    @Test func `tags only`() {
+    @Test func `unrecognized tags become other`() {
         #expect(lex("<html><head></head></html>") == [
-            .tag("html"),
-            .tag("head"),
-            .tag("/head"),
-            .tag("/html"),
+            .tag(.other("html")),
+            .tag(.other("head")),
+            .tag(.other("/head")),
+            .tag(.other("/html")),
+        ])
+    }
+
+    @Test func `formatting tags parse to cases`() {
+        #expect(lex("<i><small><big><br><p></p>") == [
+            .tag(.italicOpen),
+            .tag(.smallOpen),
+            .tag(.bigOpen),
+            .tag(.lineBreak),
+            .tag(.paragraphOpen),
+            .tag(.paragraphClose),
         ])
     }
 }
