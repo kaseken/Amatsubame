@@ -24,7 +24,7 @@ struct Layout {
     private var cursorY = LayoutMetrics.verticalStep
     private var weight: NSFont.Weight = .regular
     private var italic = false
-    private var size = LayoutMetrics.defaultFontSize
+    private var fontSize = LayoutMetrics.defaultFontSize
 
     /// Words on the current line awaiting baseline alignment by ``commitLine()``.
     private var line: [(x: Double, word: String, font: NSFont)] = []
@@ -48,10 +48,10 @@ struct Layout {
             case "/b": weight = .regular
             case "i": italic = true
             case "/i": italic = false
-            case "small": size -= 2
-            case "/small": size += 2
-            case "big": size += 4
-            case "/big": size -= 4
+            case "small": fontSize -= 2
+            case "/small": fontSize += 2
+            case "big": fontSize += 4
+            case "/big": fontSize -= 4
             case "br": commitLine()
             case "/p":
                 commitLine()
@@ -62,7 +62,7 @@ struct Layout {
     }
 
     private mutating func word(_ word: String) {
-        let font = Fonts.get(size: size, weight: weight, italic: italic)
+        let font = Fonts.get(size: fontSize, weight: weight, italic: italic)
         let width = font.width(of: word)
         if cursorX + width > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalStep {
             commitLine()
