@@ -11,14 +11,10 @@ swift build
 ## Usage
 
 ```bash
-.build/debug/Amatsubame <url>
-```
-
-```bash
-.build/debug/Amatsubame http://example.org/
+swift run Amatsubame https://browser.engineering/index.html
 ```
 
 ## Requirements
 
 - macOS 12+
-- Swift 5.9+
+- Swift 6.0+
