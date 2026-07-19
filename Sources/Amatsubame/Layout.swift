@@ -22,8 +22,8 @@ struct Layout {
     private(set) var displayList: [DisplayItem] = []
     private var cursorX = LayoutMetrics.horizontalStep
     private var cursorY = LayoutMetrics.verticalStep
-    private var weight: NSFont.Weight = .regular
-    private var italic = false
+    private var fontWeight: NSFont.Weight = .regular
+    private var isFontItalic = false
     private var fontSize = LayoutMetrics.defaultFontSize
 
     /// Words on the current line awaiting baseline alignment by ``commitLine()``.
@@ -44,10 +44,10 @@ struct Layout {
             }
         case let .tag(tag):
             switch tag {
-            case "b": weight = .bold
-            case "/b": weight = .regular
-            case "i": italic = true
-            case "/i": italic = false
+            case "b": fontWeight = .bold
+            case "/b": fontWeight = .regular
+            case "i": isFontItalic = true
+            case "/i": isFontItalic = false
             case "small": fontSize -= 2
             case "/small": fontSize += 2
             case "big": fontSize += 4
@@ -62,7 +62,7 @@ struct Layout {
     }
 
     private mutating func word(_ word: String) {
-        let font = Fonts.get(size: fontSize, weight: weight, italic: italic)
+        let font = Fonts.get(size: fontSize, weight: fontWeight, italic: isFontItalic)
         let width = font.width(of: word)
         if cursorX + width > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalStep {
             commitLine()
