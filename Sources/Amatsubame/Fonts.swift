@@ -1,27 +1,15 @@
 import AppKit
 
-/// Cache key identifying a font by its size, weight, and slant.
-private struct FontKey: Hashable {
-    let size: Double
-    let weight: NSFont.Weight
-    let italic: Bool
-}
-
-/// Caches `NSFont` instances so identical (size, weight, italic) combinations are
-/// only constructed once, mirroring the `FONTS` cache in browser.engineering.
-@MainActor
+/// Builds `NSFont` instances for a given size, weight, and slant.
+///
+/// The book caches fonts because Tkinter font objects are expensive to create and
+/// measure; AppKit already interns system fonts cheaply, so no cache is needed.
 enum Fonts {
-    private static var cache: [FontKey: NSFont] = [:]
-
     static func get(size: Double, weight: NSFont.Weight, italic: Bool) -> NSFont {
-        let key = FontKey(size: size, weight: weight, italic: italic)
-        if let font = cache[key] { return font }
-        var font = NSFont.systemFont(ofSize: size, weight: weight)
-        if italic {
-            font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
-        }
-        cache[key] = font
-        return font
+        let font = NSFont.systemFont(ofSize: size, weight: weight)
+        return italic
+            ? NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+            : font
     }
 }
 

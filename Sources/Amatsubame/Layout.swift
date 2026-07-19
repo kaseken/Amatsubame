@@ -22,7 +22,6 @@ struct DisplayItem {
 ///
 /// Lays text out word by word, wrapping at the canvas edge and aligning words of
 /// differing sizes to a shared baseline, following browser.engineering Chapter 3.
-@MainActor
 struct Layout {
     private var displayList: [DisplayItem] = []
     private var cursorX = LayoutMetrics.horizontalStep

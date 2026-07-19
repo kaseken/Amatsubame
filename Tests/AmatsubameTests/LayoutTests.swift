@@ -2,7 +2,6 @@
 import AppKit
 import Testing
 
-@MainActor
 struct LayoutTests {
     @Test func `single word near origin`() throws {
         let list = Layout.run(lex("hello"))
