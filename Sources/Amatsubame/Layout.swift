@@ -1,6 +1,5 @@
 import AppKit
 
-/// Fixed metrics shared by layout and the canvas.
 enum LayoutMetrics {
     static let canvasWidth = 800.0
     static let canvasHeight = 600.0
@@ -10,7 +9,6 @@ enum LayoutMetrics {
     static let defaultFontSize = 16.0
 }
 
-/// A positioned word ready to be drawn.
 struct DisplayItem {
     let x: Double
     let y: Double
@@ -18,8 +16,6 @@ struct DisplayItem {
     let font: NSFont
 }
 
-/// Turns a token stream into a positioned display list.
-///
 /// Lays text out word by word, wrapping at the canvas edge and aligning words of
 /// differing sizes to a shared baseline, following browser.engineering Chapter 3.
 func layout(_ tokens: [Token]) -> [DisplayItem] {
@@ -31,9 +27,8 @@ func layout(_ tokens: [Token]) -> [DisplayItem] {
     return engine.displayList
 }
 
-/// Mutable cursor state driving ``layout(_:)``; not used directly by callers.
 private struct LayoutEngine {
-    var displayList: [DisplayItem] = []
+    private(set) var displayList: [DisplayItem] = []
     private var cursorX = LayoutMetrics.horizontalStep
     private var cursorY = LayoutMetrics.verticalStep
     private var weight: NSFont.Weight = .regular
