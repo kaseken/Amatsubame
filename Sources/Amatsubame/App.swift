@@ -9,8 +9,11 @@ struct Amatsubame {
             exit(1)
         }
         do {
-            let url = try URL(args[1])
-            let body = try await request(url)
+            guard let url = URL(string: args[1]) else {
+                fputs("Error: invalid URL\n", stderr)
+                exit(1)
+            }
+            let body = try await HTTPClient().request(url)
             show(body)
         } catch {
             fputs("Error: \(error)\n", stderr)
