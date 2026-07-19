@@ -6,12 +6,16 @@ indirect enum Node: Equatable {
 extension Node: CustomStringConvertible {
     var description: String {
         switch self {
-        case let .text(text): "\"\(text)\""
+        case let .text(text): #""\#(text)""#
         case let .element(tag, _, _): "<\(tag)>"
         }
     }
 
-    func treeDescription(indent: Int = 0) -> String {
+    func treeDescription() -> String {
+        treeDescription(indent: 0)
+    }
+
+    private func treeDescription(indent: Int) -> String {
         var lines = [String(repeating: " ", count: indent) + description]
         if case let .element(_, _, children) = self {
             for child in children {
