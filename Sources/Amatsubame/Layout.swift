@@ -18,11 +18,7 @@ struct DisplayItem {
 
 /// Lays text out word by word, wrapping at the canvas edge and aligning words of
 /// differing sizes to a shared baseline, following browser.engineering Chapter 3.
-func layout(_ tokens: [Token]) -> [DisplayItem] {
-    LayoutEngine(tokens).displayList
-}
-
-private struct LayoutEngine {
+struct Layout {
     private(set) var displayList: [DisplayItem] = []
     private var cursorX = LayoutMetrics.horizontalStep
     private var cursorY = LayoutMetrics.verticalStep
@@ -34,14 +30,14 @@ private struct LayoutEngine {
     private var line: [(x: Double, word: String, font: NSFont)] = []
 
     init(_ tokens: [Token]) {
-        for tok in tokens {
-            token(tok)
+        for token in tokens {
+            add(token)
         }
         commitLine()
     }
 
-    private mutating func token(_ tok: Token) {
-        switch tok {
+    private mutating func add(_ token: Token) {
+        switch token {
         case let .text(text):
             for word in text.split(whereSeparator: \.isWhitespace) {
                 self.word(String(word))
