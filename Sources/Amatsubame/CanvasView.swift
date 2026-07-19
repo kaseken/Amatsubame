@@ -22,7 +22,7 @@ final class CanvasView: NSView {
 
         for item in displayList {
             if item.y > scroll + LayoutMetrics.canvasHeight { continue }
-            if item.y + LayoutMetrics.verticalStep < scroll { continue }
+            if item.y + LayoutMetrics.verticalEdgeMargin < scroll { continue }
             let point = NSPoint(x: item.x, y: item.y - scroll)
             (item.text as NSString).draw(at: point, withAttributes: [
                 .font: item.font,

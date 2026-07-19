@@ -3,8 +3,8 @@ import AppKit
 enum LayoutMetrics {
     static let canvasWidth = 800.0
     static let canvasHeight = 600.0
-    static let horizontalMargin = 13.0
-    static let verticalStep = 18.0
+    static let horizontalEdgeMargin = 13.0
+    static let verticalEdgeMargin = 18.0
     static let scrollStep = 100.0
     static let defaultFontSize = 16.0
 }
@@ -20,8 +20,8 @@ struct DisplayItem {
 /// differing sizes to a shared baseline, following browser.engineering Chapter 3.
 struct Layout {
     private(set) var displayList: [DisplayItem] = []
-    private var cursorX = LayoutMetrics.horizontalMargin
-    private var cursorY = LayoutMetrics.verticalStep
+    private var cursorX = LayoutMetrics.horizontalEdgeMargin
+    private var cursorY = LayoutMetrics.verticalEdgeMargin
     private var fontWeight: NSFont.Weight = .regular
     private var isFontItalic = false
     private var fontSize = LayoutMetrics.defaultFontSize
@@ -55,7 +55,7 @@ struct Layout {
             case "br": commitLine()
             case "/p":
                 commitLine()
-                cursorY += LayoutMetrics.verticalStep
+                cursorY += LayoutMetrics.verticalEdgeMargin
             default: break
             }
         }
@@ -64,7 +64,7 @@ struct Layout {
     private mutating func word(_ word: String) {
         let font = Fonts.get(size: fontSize, weight: fontWeight, italic: isFontItalic)
         let wordWidth = font.width(of: word)
-        if cursorX + wordWidth > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalMargin {
+        if cursorX + wordWidth > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalEdgeMargin {
             commitLine()
         }
         line.append((x: cursorX, word: word, font: font))
@@ -81,7 +81,7 @@ struct Layout {
         }
         let maxDescent = line.map(\.font.descent).max() ?? 0
         cursorY = baseline + 1.25 * maxDescent
-        cursorX = LayoutMetrics.horizontalMargin
+        cursorX = LayoutMetrics.horizontalEdgeMargin
         line = []
     }
 }
