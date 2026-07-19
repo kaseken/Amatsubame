@@ -1,9 +1,6 @@
 import AppKit
 
 /// Builds `NSFont` instances for a given size, weight, and slant.
-///
-/// The book caches fonts because Tkinter font objects are expensive to create and
-/// measure; AppKit already interns system fonts cheaply, so no cache is needed.
 enum Fonts {
     static func get(size: Double, weight: NSFont.Weight, italic: Bool) -> NSFont {
         let font = NSFont.systemFont(ofSize: size, weight: weight)
