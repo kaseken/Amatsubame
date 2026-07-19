@@ -30,7 +30,7 @@ struct Layout {
     private var italic = false
     private var size = LayoutMetrics.defaultFontSize
 
-    /// Words on the current line awaiting baseline alignment by ``flush()``.
+    /// Words on the current line awaiting baseline alignment by ``commitLine()``.
     private var line: [(x: Double, word: String, font: NSFont)] = []
 
     static func run(_ tokens: [Token]) -> [DisplayItem] {
@@ -38,7 +38,7 @@ struct Layout {
         for token in tokens {
             layout.token(token)
         }
-        layout.flush()
+        layout.commitLine()
         return layout.displayList
     }
 
@@ -58,9 +58,9 @@ struct Layout {
             case "/small": size += 2
             case "big": size += 4
             case "/big": size -= 4
-            case "br": flush()
+            case "br": commitLine()
             case "/p":
-                flush()
+                commitLine()
                 cursorY += LayoutMetrics.verticalStep
             default: break
             }
@@ -71,13 +71,13 @@ struct Layout {
         let font = Fonts.get(size: size, weight: weight, italic: italic)
         let width = font.width(of: word)
         if cursorX + width > LayoutMetrics.canvasWidth - LayoutMetrics.horizontalStep {
-            flush()
+            commitLine()
         }
         line.append((x: cursorX, word: word, font: font))
         cursorX += width + font.width(of: " ")
     }
 
-    private mutating func flush() {
+    private mutating func commitLine() {
         guard !line.isEmpty else { return }
         let maxAscent = line.map(\.font.ascender).max() ?? 0
         let baseline = cursorY + 1.25 * maxAscent
