@@ -27,36 +27,47 @@ struct Layout {
     /// Words on the current line awaiting baseline alignment by ``commitLine()``.
     private var line: [(x: Double, word: String, font: NSFont)] = []
 
-    init(_ tokens: [Token]) {
-        for token in tokens {
-            add(token)
-        }
+    init(_ tree: Node) {
+        recurse(tree)
         commitLine()
     }
 
-    private mutating func add(_ token: Token) {
-        switch token {
+    private mutating func recurse(_ node: Node) {
+        switch node {
         case let .text(text):
             for word in text.split(whereSeparator: \.isWhitespace) {
                 self.word(String(word))
             }
-        case let .tag(tag):
-            switch tag {
-            case .boldOpen: fontWeight = .bold
-            case .boldClose: fontWeight = .regular
-            case .italicOpen: isFontItalic = true
-            case .italicClose: isFontItalic = false
-            case .smallOpen: fontSize -= 2
-            case .smallClose: fontSize += 2
-            case .bigOpen: fontSize += 4
-            case .bigClose: fontSize -= 4
-            case .lineBreak: commitLine()
-            case .paragraphOpen: break
-            case .paragraphClose:
-                commitLine()
-                cursorY += Layout.verticalEdgeMargin
-            case .other: break
+        case let .element(tag, _, children):
+            openTag(tag)
+            for child in children {
+                recurse(child)
             }
+            closeTag(tag)
+        }
+    }
+
+    private mutating func openTag(_ tag: String) {
+        switch tag {
+        case "b": fontWeight = .bold
+        case "i": isFontItalic = true
+        case "small": fontSize -= 2
+        case "big": fontSize += 4
+        case "br": commitLine()
+        default: break
+        }
+    }
+
+    private mutating func closeTag(_ tag: String) {
+        switch tag {
+        case "b": fontWeight = .regular
+        case "i": isFontItalic = false
+        case "small": fontSize += 2
+        case "big": fontSize -= 4
+        case "p":
+            commitLine()
+            cursorY += Layout.verticalEdgeMargin
+        default: break
         }
     }
 
