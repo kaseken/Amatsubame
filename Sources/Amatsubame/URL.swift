@@ -31,23 +31,22 @@ struct URL {
         scheme = parsedScheme
 
         let rest = String(raw[separatorRange.upperBound...])
-        let slashIdx = rest.firstIndex(of: "/")
-        let hostPort = slashIdx.map { String(rest[..<$0]) } ?? rest
-        path = if let slashIdx {
-            "/" + String(rest[rest.index(after: slashIdx)...])
+        let (path, authority): (String, String) = if let firstSlashIndex = rest.firstIndex(of: "/") {
+            ("/" + String(rest[rest.index(after: firstSlashIndex)...]), String(rest[..<firstSlashIndex]))
         } else {
-            "/"
+            ("/", rest)
         }
-        (host, port) = try URL.parseHostPort(hostPort, defaultPort: scheme.defaultPort)
+        self.path = path
+        (host, port) = try URL.parseAuthority(authority, defaultPort: scheme.defaultPort)
     }
 
-    private static func parseHostPort(_ hostPort: String, defaultPort: Int) throws -> (String, Int) {
-        guard hostPort.contains(":") else {
-            return (hostPort, defaultPort)
+    private static func parseAuthority(_ authority: String, defaultPort: Int) throws -> (String, Int) {
+        let parts = authority.split(separator: ":", maxSplits: 1)
+        guard parts.count > 1 else {
+            return (authority, defaultPort)
         }
-        let parts = hostPort.split(separator: ":", maxSplits: 1)
-        guard parts.count == 2, let port = Int(parts[1]) else {
-            throw URLParseError.invalidURL("invalid port in: \(hostPort)")
+        guard let port = Int(parts[1]) else {
+            throw URLParseError.invalidURL("invalid port in: \(authority)")
         }
         return (String(parts[0]), port)
     }
