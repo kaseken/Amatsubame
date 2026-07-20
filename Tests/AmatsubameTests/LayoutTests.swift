@@ -6,7 +6,7 @@ private func textCommands(_ html: String) -> [DrawText] {
     paintTree(layoutDocument(parse(html))).compactMap { $0 as? DrawText }
 }
 
-struct LayoutTreeTests {
+struct LayoutTests {
     @Test func `single word near origin`() throws {
         let list = textCommands("hello")
         #expect(list.count == 1)
