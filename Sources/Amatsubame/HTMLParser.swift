@@ -5,7 +5,7 @@ struct HTMLParser {
         self.body = body
     }
 
-    func parse() -> Node {
+    func parse() -> HTMLNode {
         var stack: [OpenElement] = []
         var buffer = ""
         var inTag = false
@@ -31,9 +31,9 @@ struct HTMLParser {
 private struct OpenElement {
     let tag: String
     let attributes: [String: String]
-    var children: [Node]
+    var children: [HTMLNode]
 
-    var node: Node {
+    var node: HTMLNode {
         .element(tag: tag, attributes: attributes, children: children)
     }
 }
@@ -70,14 +70,14 @@ private func getAttributes(_ text: String) -> (tag: String, attributes: [String:
 private extension [OpenElement] {
     mutating func addText(_ text: String) {
         if text.allSatisfy(\.isWhitespace) { return }
-        implicitTags(nil)
+        addImplicitTags(before: .text)
         self[count - 1].children.append(.text(text))
     }
 
     mutating func addTag(_ text: String) {
         let (tag, attributes) = getAttributes(text)
         if tag.hasPrefix("!") { return }
-        implicitTags(tag)
+        addImplicitTags(before: .tag(tag))
 
         if tag.hasPrefix("/") {
             if count == 1 { return }
@@ -92,23 +92,41 @@ private extension [OpenElement] {
         }
     }
 
-    mutating func implicitTags(_ tag: String?) {
-        while true {
-            let openTags = map(\.tag)
-            if openTags.isEmpty, tag != "html" {
-                addTag("html")
-            } else if openTags == ["html"], tag != "head", tag != "body", tag != "/html" {
-                addTag(headTags.contains(tag ?? "") ? "head" : "body")
-            } else if openTags == ["html", "head"], tag != "/head", !headTags.contains(tag ?? "") {
-                addTag("/head")
-            } else {
-                break
-            }
+    private mutating func addImplicitTags(before next: NextToken) {
+        while let implicit = nextImplicitTag(before: next) {
+            addTag(implicit)
         }
     }
 
-    mutating func finish() -> Node {
-        if isEmpty { implicitTags(nil) }
+    private enum NextToken {
+        case tag(String)
+        case text
+        case end
+    }
+
+    private func nextImplicitTag(before next: NextToken) -> String? {
+        let openTags = map(\.tag)
+        let nextTag: String? = if case let .tag(name) = next { name } else { nil }
+        let isHeadContent = nextTag.map(headTags.contains) ?? false
+
+        if openTags.isEmpty {
+            if nextTag == "html" { return nil }
+            return "html"
+        }
+        if openTags == ["html"] {
+            if nextTag == "head" || nextTag == "body" || nextTag == "/html" { return nil }
+            if isHeadContent { return "head" }
+            return "body"
+        }
+        if openTags == ["html", "head"] {
+            if nextTag == "/head" || isHeadContent { return nil }
+            return "/head"
+        }
+        return nil
+    }
+
+    mutating func finish() -> HTMLNode {
+        if isEmpty { addImplicitTags(before: .end) }
         while count > 1 {
             let element = removeLast()
             self[count - 1].children.append(element.node)

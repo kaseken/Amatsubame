@@ -1,9 +1,9 @@
-indirect enum Node: Equatable {
+indirect enum HTMLNode: Equatable {
     case text(String)
-    case element(tag: String, attributes: [String: String], children: [Node])
+    case element(tag: String, attributes: [String: String], children: [HTMLNode])
 }
 
-extension Node: CustomStringConvertible {
+extension HTMLNode: CustomStringConvertible {
     var description: String {
         switch self {
         case let .text(text): #""\#(text)""#

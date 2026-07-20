@@ -1,7 +1,7 @@
 @testable import Amatsubame
 import Testing
 
-func parse(_ html: String) -> Node {
+func parse(_ html: String) -> HTMLNode {
     HTMLParser(html).parse()
 }
 

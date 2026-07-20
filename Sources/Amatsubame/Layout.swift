@@ -27,12 +27,12 @@ struct Layout {
     /// Words on the current line awaiting baseline alignment by ``commitLine()``.
     private var line: [(x: Double, word: String, font: NSFont)] = []
 
-    init(_ tree: Node) {
+    init(_ tree: HTMLNode) {
         recurse(tree)
         commitLine()
     }
 
-    private mutating func recurse(_ node: Node) {
+    private mutating func recurse(_ node: HTMLNode) {
         switch node {
         case let .text(text):
             for word in text.split(whereSeparator: \.isWhitespace) {
