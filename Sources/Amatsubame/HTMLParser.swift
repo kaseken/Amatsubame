@@ -50,21 +50,28 @@ private let headTags: Set<String> = [
 
 private func getAttributes(_ text: String) -> (tag: String, attributes: [String: String]) {
     let parts = text.split(whereSeparator: \.isWhitespace)
+    // NOTE: Falling back to "" handles <>.
     let tag = parts.first.map { $0.lowercased() } ?? ""
     var attributes: [String: String] = [:]
     for part in parts.dropFirst() {
-        if let eq = part.firstIndex(of: "=") {
-            let key = part[..<eq].lowercased()
-            var value = String(part[part.index(after: eq)...])
-            if value.count > 2, value.first == "'" || value.first == "\"" {
-                value = String(value.dropFirst().dropLast())
-            }
-            attributes[key] = value
-        } else {
+        guard let eq = part.firstIndex(of: "=") else {
             attributes[part.lowercased()] = ""
+            continue
         }
+        let key = part[..<eq].lowercased()
+        let value = String(part[part.index(after: eq)...].unquoted)
+        attributes[key] = value
     }
     return (tag, attributes)
+}
+
+private extension Substring {
+    var unquoted: Substring {
+        guard count > 2, let quote = first, quote == "'" || quote == "\"", last == quote else {
+            return self
+        }
+        return dropFirst().dropLast()
+    }
 }
 
 private extension [OpenElement] {
@@ -76,6 +83,7 @@ private extension [OpenElement] {
 
     mutating func addTag(_ text: String) {
         let (tag, attributes) = getAttributes(text)
+        // NOTE: Skip comments and the doctype declaration (<!-- ... -->, <!doctype>).
         if tag.hasPrefix("!") { return }
         addImplicitTags(before: .tag(tag))
 
