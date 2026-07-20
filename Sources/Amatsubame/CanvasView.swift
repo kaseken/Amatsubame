@@ -1,7 +1,7 @@
 import AppKit
 
 final class CanvasView: NSView {
-    var displayList: [DisplayItem] = [] {
+    var displayList: [DisplayCommand] = [] {
         didSet { needsDisplay = true }
     }
 
@@ -20,14 +20,10 @@ final class CanvasView: NSView {
         NSColor.white.setFill()
         dirtyRect.fill()
 
-        for item in displayList {
-            if item.y > scroll + Layout.canvasHeight { continue }
-            if item.y + Layout.verticalEdgeMargin < scroll { continue }
-            let point = NSPoint(x: item.x, y: item.y - scroll)
-            (item.text as NSString).draw(at: point, withAttributes: [
-                .font: item.font,
-                .foregroundColor: NSColor.black,
-            ])
+        for command in displayList {
+            if command.top > scroll + Layout.canvasHeight { continue }
+            if command.bottom < scroll { continue }
+            command.draw(scroll: scroll)
         }
     }
 
