@@ -7,8 +7,6 @@ struct DisplayItem {
     let font: NSFont
 }
 
-/// Lays text out word by word, wrapping at the canvas edge and aligning words of
-/// differing sizes to a shared baseline, following browser.engineering Chapter 3.
 struct Layout {
     static let canvasWidth = 800.0
     static let canvasHeight = 600.0
@@ -28,26 +26,26 @@ struct Layout {
     private var line: [(x: Double, word: String, font: NSFont)] = []
 
     init(_ tree: HTMLNode) {
-        recurse(tree)
+        arrange(node: tree)
         commitLine()
     }
 
-    private mutating func recurse(_ node: HTMLNode) {
+    private mutating func arrange(node: HTMLNode) {
         switch node {
         case let .text(text):
             for word in text.split(whereSeparator: \.isWhitespace) {
-                self.word(String(word))
+                appendWordToCurrentLine(String(word))
             }
         case let .element(tag, _, children):
-            openTag(tag)
+            applyOpeningTagFormatting(tag)
             for child in children {
-                recurse(child)
+                arrange(node: child)
             }
-            closeTag(tag)
+            applyClosingTagFormatting(tag)
         }
     }
 
-    private mutating func openTag(_ tag: String) {
+    private mutating func applyOpeningTagFormatting(_ tag: String) {
         switch tag {
         case "b": fontWeight = .bold
         case "i": isFontItalic = true
@@ -58,7 +56,7 @@ struct Layout {
         }
     }
 
-    private mutating func closeTag(_ tag: String) {
+    private mutating func applyClosingTagFormatting(_ tag: String) {
         switch tag {
         case "b": fontWeight = .regular
         case "i": isFontItalic = false
@@ -71,7 +69,7 @@ struct Layout {
         }
     }
 
-    private mutating func word(_ word: String) {
+    private mutating func appendWordToCurrentLine(_ word: String) {
         let font = Fonts.get(size: fontSize, weight: fontWeight, italic: isFontItalic)
         let wordWidth = font.width(of: word)
         if cursorX + wordWidth + Layout.horizontalEdgeMargin > Layout.canvasWidth {
