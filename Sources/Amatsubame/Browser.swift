@@ -23,7 +23,7 @@ final class Browser {
         Task { @MainActor in
             do {
                 let body = try await HTTPClient().request(url)
-                canvas.displayList = Layout(lex(body)).displayList
+                canvas.displayList = Layout(HTMLParser(body).parse()).displayList
             } catch {
                 fputs("Error: \(error)\n", stderr)
             }
