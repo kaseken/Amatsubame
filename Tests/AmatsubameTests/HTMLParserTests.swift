@@ -2,8 +2,7 @@
 import Testing
 
 func parse(_ html: String) -> Node {
-    var parser = HTMLParser(html)
-    return parser.parse()
+    HTMLParser(html).parse()
 }
 
 struct HTMLParserTests {
