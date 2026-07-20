@@ -24,8 +24,8 @@ private struct BoxFrame {
 }
 
 private enum LayoutBox {
-    case block(node: HTMLNode, frame: BoxFrame, children: [LayoutBox])
-    case inline(node: HTMLNode, frame: BoxFrame, words: [PositionedWord])
+    case block(node: StyledNode, frame: BoxFrame, children: [LayoutBox])
+    case inline(node: StyledNode, frame: BoxFrame, words: [PositionedWord])
 
     var frame: BoxFrame {
         switch self {
@@ -39,13 +39,14 @@ private struct PositionedWord {
     let y: Double
     let text: String
     let font: NSFont
+    let color: NSColor
 }
 
-func displayCommands(for node: HTMLNode) -> [DisplayCommand] {
-    displayCommands(for: layoutDocument(node))
+func displayCommands(for styled: StyledNode) -> [DisplayCommand] {
+    displayCommands(for: layoutDocument(styled))
 }
 
-private func layoutDocument(_ node: HTMLNode) -> LayoutBox {
+private func layoutDocument(_ node: StyledNode) -> LayoutBox {
     layoutBlock(
         node,
         x: Layout.horizontalEdgeMargin,
@@ -57,21 +58,18 @@ private func layoutDocument(_ node: HTMLNode) -> LayoutBox {
 private func displayCommands(for box: LayoutBox) -> [DisplayCommand] {
     switch box {
     case let .block(node, frame, children):
-        boxCommands(node: node, frame: frame) + children.flatMap { displayCommands(for: $0) }
+        boxCommands(for: node, frame: frame) + children.flatMap { displayCommands(for: $0) }
     case let .inline(node, frame, words):
-        boxCommands(node: node, frame: frame)
-            + words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font) }
+        boxCommands(for: node, frame: frame)
+            + words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font, color: $0.color) }
     }
 }
 
-private func boxCommands(node: HTMLNode, frame: BoxFrame) -> [DisplayCommand] {
-    guard case let .element(tag, _, _) = node else { return [] }
-    return switch tag {
-    case "pre":
-        [DrawRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height, color: .lightGray)]
-    default:
-        []
-    }
+private func boxCommands(for node: StyledNode, frame: BoxFrame) -> [DisplayCommand] {
+    guard case .element = node.node,
+          let background = node.style["background-color"], background != "transparent"
+    else { return [] }
+    return [DrawRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height, color: namedColor(background))]
 }
 
 private enum LayoutMode {
@@ -79,10 +77,10 @@ private enum LayoutMode {
     case inline
 }
 
-private func layoutBlock(_ node: HTMLNode, x: Double, y: Double, width: Double) -> LayoutBox {
+private func layoutBlock(_ node: StyledNode, x: Double, y: Double, width: Double) -> LayoutBox {
     switch layoutMode(node) {
     case .block:
-        let children = layoutStackedChildren(childNodes(node), x: x, y: y, width: width)
+        let children = layoutStackedChildren(node.children, x: x, y: y, width: width)
         let height = children.reduce(0) { $0 + $1.frame.height }
         return .block(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), children: children)
     case .inline:
@@ -92,14 +90,14 @@ private func layoutBlock(_ node: HTMLNode, x: Double, y: Double, width: Double) 
     }
 }
 
-private func layoutStackedChildren(_ nodes: [HTMLNode], x: Double, y: Double, width: Double) -> [LayoutBox] {
+private func layoutStackedChildren(_ nodes: [StyledNode], x: Double, y: Double, width: Double) -> [LayoutBox] {
     guard let first = nodes.first else { return [] }
     let box = layoutBlock(first, x: x, y: y, width: width)
     return [box] + layoutStackedChildren(Array(nodes.dropFirst()), x: x, y: box.frame.y + box.frame.height, width: width)
 }
 
-private func layoutMode(_ node: HTMLNode) -> LayoutMode {
-    switch node {
+private func layoutMode(_ node: StyledNode) -> LayoutMode {
+    switch node.node {
     case .text: .inline
     case let .element(_, _, children):
         if children.isEmpty || children.contains(where: isBlockElement) {
@@ -118,49 +116,65 @@ private func isBlockElement(_ node: HTMLNode) -> Bool {
     }
 }
 
-private func childNodes(_ node: HTMLNode) -> [HTMLNode] {
-    if case let .element(_, _, children) = node {
-        children
-    } else {
-        []
+private func font(for style: [String: String]) -> NSFont {
+    let size = pixels(style["font-size"]) ?? 16
+    let weight: NSFont.Weight = style["font-weight"] == "bold" ? .bold : .regular
+    let italic = style["font-style"] == "italic"
+    return Fonts.get(size: size, weight: weight, italic: italic)
+}
+
+private func pixels(_ value: String?) -> Double? {
+    guard let value, value.hasSuffix("px") else { return nil }
+    return Double(value.dropLast(2))
+}
+
+func namedColor(_ value: String?) -> NSColor {
+    guard let value else { return .black }
+    if value.hasPrefix("#") { return hexColor(value) ?? .black }
+    return switch value {
+    case "blue": .blue
+    case "red": .red
+    case "green": .green
+    case "yellow": .yellow
+    case "orange": .orange
+    case "purple": .purple
+    case "brown": .brown
+    case "cyan": .cyan
+    case "magenta": .magenta
+    case "gray", "grey": .gray
+    case "white": .white
+    default: .black
     }
 }
 
-private struct FontStyle {
-    let size: Double
-    let weight: NSFont.Weight
-    let italic: Bool
-
-    static let base = FontStyle(size: 16, weight: .regular, italic: false)
-
-    var font: NSFont {
-        Fonts.get(size: size, weight: weight, italic: italic)
-    }
-
-    func applying(_ tag: String) -> FontStyle {
-        switch tag {
-        case "b": FontStyle(size: size, weight: .bold, italic: italic)
-        case "i": FontStyle(size: size, weight: weight, italic: true)
-        case "small": FontStyle(size: size - 2, weight: weight, italic: italic)
-        case "big": FontStyle(size: size + 4, weight: weight, italic: italic)
-        default: self
-        }
-    }
+private func hexColor(_ value: String) -> NSColor? {
+    let digits = value.dropFirst()
+    guard digits.count == 6, let rgb = Int(digits, radix: 16) else { return nil }
+    return NSColor(
+        red: Double((rgb >> 16) & 0xFF) / 255,
+        green: Double((rgb >> 8) & 0xFF) / 255,
+        blue: Double(rgb & 0xFF) / 255,
+        alpha: 1,
+    )
 }
 
 private enum InlineToken {
-    case word(String, NSFont)
+    case word(String, NSFont, NSColor)
     case lineBreak
 }
 
-private func inlineTokens(_ node: HTMLNode, style: FontStyle) -> [InlineToken] {
-    switch node {
+private let nonRenderedTags: Set<String> = ["head", "title", "style", "script"]
+
+private func inlineTokens(_ node: StyledNode) -> [InlineToken] {
+    switch node.node {
     case let .text(text):
-        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), style.font) }
-    case let .element(tag, _, children):
+        let wordFont = font(for: node.style)
+        let color = namedColor(node.style["color"])
+        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), wordFont, color) }
+    case let .element(tag, _, _):
         if tag == "br" { return [.lineBreak] }
-        let nestedStyle = style.applying(tag)
-        return children.flatMap { inlineTokens($0, style: nestedStyle) }
+        if nonRenderedTags.contains(tag) { return [] }
+        return node.children.flatMap(inlineTokens)
     }
 }
 
@@ -168,6 +182,7 @@ private struct WrappedWord {
     let x: Double
     let word: String
     let font: NSFont
+    let color: NSColor
 }
 
 private struct WrapState {
@@ -183,20 +198,20 @@ private struct WrapState {
     }
 }
 
-private func wrapIntoLines(_ node: HTMLNode, width: Double) -> [[WrappedWord]] {
+private func wrapIntoLines(_ node: StyledNode, width: Double) -> [[WrappedWord]] {
     let start = WrapState(lines: [], currentLine: [], cursorX: 0)
-    let placed = inlineTokens(node, style: .base).reduce(start) { state, token in
+    let placed = inlineTokens(node).reduce(start) { state, token in
         switch token {
         case .lineBreak:
             return state.breakingLine()
-        case let .word(word, font):
+        case let .word(word, font, color):
             let wordWidth = font.width(of: word)
             let wrapped = if state.cursorX + wordWidth > width {
                 state.breakingLine()
             } else {
                 state
             }
-            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font)
+            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font, color: color)
             return WrapState(
                 lines: wrapped.lines,
                 currentLine: wrapped.currentLine + [placement],
@@ -225,6 +240,7 @@ private func positionLines(
                 y: originY + baseline - word.font.ascender,
                 text: word.word,
                 font: word.font,
+                color: word.color,
             )
         }
         let maxDescent = line.map(\.font.descent).max() ?? 0

@@ -11,6 +11,7 @@ struct DrawText: DisplayCommand {
     let y: Double
     let text: String
     let font: NSFont
+    let color: NSColor
 
     var top: Double {
         y
@@ -24,7 +25,7 @@ struct DrawText: DisplayCommand {
         let point = NSPoint(x: x, y: y - scrollY)
         (text as NSString).draw(at: point, withAttributes: [
             .font: font,
-            .foregroundColor: NSColor.black,
+            .foregroundColor: color,
         ])
     }
 }

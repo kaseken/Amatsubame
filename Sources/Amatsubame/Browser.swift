@@ -23,10 +23,25 @@ final class Browser {
         Task { @MainActor in
             do {
                 let body = try await HTTPClient().request(url)
-                canvas.displayCommands = displayCommands(for: HTMLParser(body).parse())
+                let tree = HTMLParser(body).parse()
+                let linkedRules = await linkedStyleRules(for: tree, pageURL: url)
+                let embeddedRules = embeddedStyleSheets(tree).flatMap { CSSParser($0).parse() }
+                let styled = style(tree, rules: sortedByCascade(defaultStyleRules + linkedRules + embeddedRules))
+                canvas.displayCommands = displayCommands(for: styled)
             } catch {
                 fputs("Error: \(error)\n", stderr)
             }
         }
+    }
+
+    private func linkedStyleRules(for tree: HTMLNode, pageURL: URL) async -> [CSSRule] {
+        var rules: [CSSRule] = []
+        for href in linkedStyleSheetHrefs(tree) {
+            guard let styleSheetURL = URL(string: href, relativeTo: pageURL),
+                  let body = try? await HTTPClient().request(styleSheetURL)
+            else { continue }
+            rules += CSSParser(body).parse()
+        }
+        return rules
     }
 }
