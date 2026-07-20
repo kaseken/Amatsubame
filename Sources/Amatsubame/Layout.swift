@@ -1,107 +1,234 @@
 import AppKit
 
-struct DisplayItem {
+enum Layout {
+    static let canvasWidth = 800.0
+    static let canvasHeight = 600.0
+    static let horizontalEdgeMargin = 13.0
+    static let verticalEdgeMargin = 18.0
+    static let scrollStep = 100.0
+}
+
+private let blockElements: Set<String> = [
+    "html", "body", "article", "section", "nav", "aside",
+    "h1", "h2", "h3", "h4", "h5", "h6", "hgroup", "header", "footer", "address",
+    "p", "hr", "pre", "blockquote", "ol", "ul", "menu", "li", "dl", "dt", "dd",
+    "figure", "figcaption", "main", "div", "table", "form", "fieldset", "legend",
+    "details", "summary",
+]
+
+private struct BoxFrame {
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+}
+
+private enum LayoutBox {
+    case block(node: HTMLNode, frame: BoxFrame, children: [LayoutBox])
+    case inline(node: HTMLNode, frame: BoxFrame, words: [PositionedWord])
+
+    var frame: BoxFrame {
+        switch self {
+        case let .block(_, frame, _), let .inline(_, frame, _): frame
+        }
+    }
+}
+
+private struct PositionedWord {
     let x: Double
     let y: Double
     let text: String
     let font: NSFont
 }
 
-struct Layout {
-    static let canvasWidth = 800.0
-    static let canvasHeight = 600.0
-    static let horizontalEdgeMargin = 13.0
-    static let verticalEdgeMargin = 18.0
-    static let scrollStep = 100.0
-    private static let defaultFontSize = 16.0
+func displayCommands(for node: HTMLNode) -> [DisplayCommand] {
+    displayCommands(for: layoutDocument(node))
+}
 
-    let displayList: [DisplayItem]
+private func layoutDocument(_ node: HTMLNode) -> LayoutBox {
+    layoutBlock(
+        node,
+        x: Layout.horizontalEdgeMargin,
+        y: Layout.verticalEdgeMargin,
+        width: Layout.canvasWidth - 2 * Layout.horizontalEdgeMargin,
+    )
+}
 
-    init(_ tree: HTMLNode) {
-        var state = State()
-        Layout.arrange(node: tree, &state)
-        Layout.commitLine(&state)
-        displayList = state.displayList
+private func displayCommands(for box: LayoutBox) -> [DisplayCommand] {
+    switch box {
+    case let .block(node, frame, children):
+        boxCommands(node: node, frame: frame) + children.flatMap { displayCommands(for: $0) }
+    case let .inline(node, frame, words):
+        boxCommands(node: node, frame: frame)
+            + words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font) }
     }
+}
 
-    private struct State {
-        var displayList: [DisplayItem] = []
-        var cursorX = Layout.horizontalEdgeMargin
-        var cursorY = Layout.verticalEdgeMargin
-        var fontWeight: NSFont.Weight = .regular
-        var isFontItalic = false
-        var fontSize = Layout.defaultFontSize
-        var line: [(x: Double, word: String, font: NSFont)] = []
+private func boxCommands(node: HTMLNode, frame: BoxFrame) -> [DisplayCommand] {
+    guard case let .element(tag, _, _) = node else { return [] }
+    return switch tag {
+    case "pre":
+        [DrawRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height, color: .lightGray)]
+    default:
+        []
     }
+}
 
-    private static func arrange(node: HTMLNode, _ state: inout State) {
-        switch node {
-        case let .text(text):
-            for word in text.split(whereSeparator: \.isWhitespace) {
-                appendWordToCurrentLine(String(word), &state)
-            }
-        case let .element(tag, _, children):
-            applyTagFormatting(tag, &state) { state in
-                for child in children {
-                    arrange(node: child, &state)
-                }
-            }
+private enum LayoutMode {
+    case block
+    case inline
+}
+
+private func layoutBlock(_ node: HTMLNode, x: Double, y: Double, width: Double) -> LayoutBox {
+    switch layoutMode(node) {
+    case .block:
+        let children = layoutStackedChildren(childNodes(node), x: x, y: y, width: width)
+        let height = children.reduce(0) { $0 + $1.frame.height }
+        return .block(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), children: children)
+    case .inline:
+        let lines = wrapIntoLines(node, width: width)
+        let (words, height) = positionLines(lines, originX: x, originY: y)
+        return .inline(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), words: words)
+    }
+}
+
+private func layoutStackedChildren(_ nodes: [HTMLNode], x: Double, y: Double, width: Double) -> [LayoutBox] {
+    guard let first = nodes.first else { return [] }
+    let box = layoutBlock(first, x: x, y: y, width: width)
+    return [box] + layoutStackedChildren(Array(nodes.dropFirst()), x: x, y: box.frame.y + box.frame.height, width: width)
+}
+
+private func layoutMode(_ node: HTMLNode) -> LayoutMode {
+    switch node {
+    case .text: .inline
+    case let .element(_, _, children):
+        if children.isEmpty || children.contains(where: isBlockElement) {
+            .block
+        } else {
+            .inline
         }
     }
+}
 
-    private static func applyTagFormatting(
-        _ tag: String, _ state: inout State, around body: (inout State) -> Void,
-    ) {
-        applyOpeningTagFormatting(tag, &state)
-        body(&state)
-        applyClosingTagFormatting(tag, &state)
+private func isBlockElement(_ node: HTMLNode) -> Bool {
+    if case let .element(tag, _, _) = node {
+        blockElements.contains(tag)
+    } else {
+        false
+    }
+}
+
+private func childNodes(_ node: HTMLNode) -> [HTMLNode] {
+    if case let .element(_, _, children) = node {
+        children
+    } else {
+        []
+    }
+}
+
+private struct FontStyle {
+    let size: Double
+    let weight: NSFont.Weight
+    let italic: Bool
+
+    static let base = FontStyle(size: 16, weight: .regular, italic: false)
+
+    var font: NSFont {
+        Fonts.get(size: size, weight: weight, italic: italic)
     }
 
-    private static func applyOpeningTagFormatting(_ tag: String, _ state: inout State) {
+    func applying(_ tag: String) -> FontStyle {
         switch tag {
-        case "b": state.fontWeight = .bold
-        case "i": state.isFontItalic = true
-        case "small": state.fontSize -= 2
-        case "big": state.fontSize += 4
-        case "br": commitLine(&state)
-        default: break
+        case "b": FontStyle(size: size, weight: .bold, italic: italic)
+        case "i": FontStyle(size: size, weight: weight, italic: true)
+        case "small": FontStyle(size: size - 2, weight: weight, italic: italic)
+        case "big": FontStyle(size: size + 4, weight: weight, italic: italic)
+        default: self
         }
     }
+}
 
-    private static func applyClosingTagFormatting(_ tag: String, _ state: inout State) {
-        switch tag {
-        case "b": state.fontWeight = .regular
-        case "i": state.isFontItalic = false
-        case "small": state.fontSize += 2
-        case "big": state.fontSize -= 4
-        case "p":
-            commitLine(&state)
-            state.cursorY += verticalEdgeMargin
-        default: break
+private enum InlineToken {
+    case word(String, NSFont)
+    case lineBreak
+}
+
+private func inlineTokens(_ node: HTMLNode, style: FontStyle) -> [InlineToken] {
+    switch node {
+    case let .text(text):
+        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), style.font) }
+    case let .element(tag, _, children):
+        if tag == "br" { return [.lineBreak] }
+        let nestedStyle = style.applying(tag)
+        return children.flatMap { inlineTokens($0, style: nestedStyle) }
+    }
+}
+
+private struct WrappedWord {
+    let x: Double
+    let word: String
+    let font: NSFont
+}
+
+private struct WrapState {
+    let lines: [[WrappedWord]]
+    let currentLine: [WrappedWord]
+    let cursorX: Double
+
+    func breakingLine() -> WrapState {
+        if currentLine.isEmpty {
+            return self
+        }
+        return WrapState(lines: lines + [currentLine], currentLine: [], cursorX: 0)
+    }
+}
+
+private func wrapIntoLines(_ node: HTMLNode, width: Double) -> [[WrappedWord]] {
+    let start = WrapState(lines: [], currentLine: [], cursorX: 0)
+    let placed = inlineTokens(node, style: .base).reduce(start) { state, token in
+        switch token {
+        case .lineBreak:
+            return state.breakingLine()
+        case let .word(word, font):
+            let wordWidth = font.width(of: word)
+            let wrapped = if state.cursorX + wordWidth > width {
+                state.breakingLine()
+            } else {
+                state
+            }
+            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font)
+            return WrapState(
+                lines: wrapped.lines,
+                currentLine: wrapped.currentLine + [placement],
+                cursorX: wrapped.cursorX + wordWidth + font.width(of: " "),
+            )
         }
     }
+    return placed.breakingLine().lines
+}
 
-    private static func appendWordToCurrentLine(_ word: String, _ state: inout State) {
-        let font = Fonts.get(size: state.fontSize, weight: state.fontWeight, italic: state.isFontItalic)
-        let wordWidth = font.width(of: word)
-        if state.cursorX + wordWidth + horizontalEdgeMargin > canvasWidth {
-            commitLine(&state)
-        }
-        state.line.append((x: state.cursorX, word: word, font: font))
-        state.cursorX += wordWidth + font.width(of: " ")
-    }
+private struct PositionState {
+    let words: [PositionedWord]
+    let cursorY: Double
+}
 
-    private static func commitLine(_ state: inout State) {
-        guard !state.line.isEmpty else { return }
-        let maxAscent = state.line.map(\.font.ascender).max() ?? 0
+private func positionLines(
+    _ lines: [[WrappedWord]], originX: Double, originY: Double,
+) -> (words: [PositionedWord], height: Double) {
+    let start = PositionState(words: [], cursorY: 0)
+    let positioned = lines.reduce(start) { state, line in
+        let maxAscent = line.map(\.font.ascender).max() ?? 0
         let baseline = state.cursorY + 1.25 * maxAscent
-        for item in state.line {
-            let y = baseline - item.font.ascender
-            state.displayList.append(DisplayItem(x: item.x, y: y, text: item.word, font: item.font))
+        let words = line.map { word in
+            PositionedWord(
+                x: originX + word.x,
+                y: originY + baseline - word.font.ascender,
+                text: word.word,
+                font: word.font,
+            )
         }
-        let maxDescent = state.line.map(\.font.descent).max() ?? 0
-        state.cursorY = baseline + 1.25 * maxDescent
-        state.cursorX = horizontalEdgeMargin
-        state.line = []
+        let maxDescent = line.map(\.font.descent).max() ?? 0
+        return PositionState(words: state.words + words, cursorY: baseline + 1.25 * maxDescent)
     }
+    return (positioned.words, positioned.cursorY)
 }
