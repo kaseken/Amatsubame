@@ -85,4 +85,15 @@ struct LayoutTests {
     @Test func `pre element paints a background rectangle`() {
         #expect(displayCommands(for: parse("<pre>code</pre>")).contains { $0 is DrawRect })
     }
+
+    @Test func `anchor text is blue`() throws {
+        let item = try #require(textCommands("<a>link</a>").first)
+        #expect(item.color == namedColor("blue"))
+    }
+
+    @Test func `background-color style paints a matching rectangle`() {
+        let rects = displayCommands(for: parse(#"<div style="background-color:blue">x</div>"#))
+            .compactMap { $0 as? DrawRect }
+        #expect(rects.contains { $0.color == namedColor("blue") })
+    }
 }
