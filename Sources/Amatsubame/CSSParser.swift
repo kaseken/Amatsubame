@@ -32,111 +32,120 @@ struct DescendantSelector: Selector {
 
 typealias CSSRule = (selector: any Selector, declarations: [String: String])
 
-final class CSSParser {
-    private enum ParseError: Error {
-        case unexpected
-    }
-
+struct CSSParser {
     private let characters: [Character]
-    private var index = 0
 
     init(_ input: String) {
         characters = Array(input)
     }
 
     func parse() -> [CSSRule] {
-        var rules: [CSSRule] = []
-        while true {
-            whitespace()
-            guard current != nil else { break }
-            do {
-                let selector = try parseSelector()
-                try literal("{")
-                whitespace()
-                let declarations = body()
-                try literal("}")
-                rules.append((selector, declarations))
-            } catch {
-                if ignoreUntil(["}"]) == "}" {
-                    index += 1
-                } else {
-                    break
-                }
-            }
-        }
-        return rules
+        parseStyleSheet(Cursor(characters: characters, index: 0))
     }
 
     func body() -> [String: String] {
-        var declarations: [String: String] = [:]
-        while let character = current, character != "}" {
-            do {
-                let (property, value) = try pair()
-                declarations[property] = value
-                whitespace()
-                try literal(";")
-                whitespace()
-            } catch {
-                if ignoreUntil([";", "}"]) == ";" {
-                    index += 1
-                    whitespace()
-                } else {
-                    break
-                }
-            }
-        }
-        return declarations
+        parseDeclarations(Cursor(characters: characters, index: 0)).declarations
     }
+}
 
-    private func parseSelector() throws -> any Selector {
-        var selector: any Selector = try TagSelector(tag: word().lowercased())
-        whitespace()
-        while let character = current, character != "{" {
-            let descendant = try TagSelector(tag: word().lowercased())
-            selector = DescendantSelector(ancestor: selector, descendant: descendant)
-            whitespace()
-        }
-        return selector
-    }
+private struct Cursor {
+    let characters: [Character]
+    let index: Int
 
-    private func pair() throws -> (property: String, value: String) {
-        let property = try word()
-        whitespace()
-        try literal(":")
-        whitespace()
-        let value = try word()
-        return (property.lowercased(), value.lowercased())
-    }
-
-    private var current: Character? {
+    var current: Character? {
         index < characters.count ? characters[index] : nil
     }
 
-    private func whitespace() {
-        while let character = current, character.isWhitespace {
-            index += 1
-        }
+    func advanced() -> Cursor {
+        Cursor(characters: characters, index: index + 1)
     }
 
-    private func word() throws -> String {
-        let start = index
-        while let character = current, character.isLetter || character.isNumber || "#-.%".contains(character) {
-            index += 1
+    func skippingWhitespace() -> Cursor {
+        var cursor = self
+        while let character = cursor.current, character.isWhitespace {
+            cursor = cursor.advanced()
         }
-        guard index > start else { throw ParseError.unexpected }
-        return String(characters[start ..< index])
+        return cursor
     }
+}
 
-    private func literal(_ expected: Character) throws {
-        guard current == expected else { throw ParseError.unexpected }
-        index += 1
-    }
+private enum ParseError: Error {
+    case unexpected
+}
 
-    private func ignoreUntil(_ stops: Set<Character>) -> Character? {
-        while let character = current {
-            if stops.contains(character) { return character }
-            index += 1
+private func parseStyleSheet(_ start: Cursor) -> [CSSRule] {
+    var rules: [CSSRule] = []
+    var cursor = start.skippingWhitespace()
+    while cursor.current != nil {
+        do {
+            let (selector, afterSelector) = try parseSelector(cursor)
+            guard afterSelector.current == "{" else { throw ParseError.unexpected }
+            let (declarations, afterBody) = parseDeclarations(afterSelector.advanced().skippingWhitespace())
+            guard afterBody.current == "}" else { throw ParseError.unexpected }
+            rules.append((selector, declarations))
+            cursor = afterBody.advanced().skippingWhitespace()
+        } catch {
+            let (stop, afterSkip) = skip(until: ["}"], cursor)
+            guard stop == "}" else { break }
+            cursor = afterSkip.advanced().skippingWhitespace()
         }
-        return nil
     }
+    return rules
+}
+
+private func parseDeclarations(_ start: Cursor) -> (declarations: [String: String], rest: Cursor) {
+    var declarations: [String: String] = [:]
+    var cursor = start
+    while let character = cursor.current, character != "}" {
+        do {
+            let (property, value, afterValue) = try parseDeclaration(cursor)
+            declarations[property] = value
+            let afterWhitespace = afterValue.skippingWhitespace()
+            guard afterWhitespace.current == ";" else { throw ParseError.unexpected }
+            cursor = afterWhitespace.advanced().skippingWhitespace()
+        } catch {
+            let (stop, afterSkip) = skip(until: [";", "}"], cursor)
+            guard stop == ";" else { return (declarations, afterSkip) }
+            cursor = afterSkip.advanced().skippingWhitespace()
+        }
+    }
+    return (declarations, cursor)
+}
+
+private func parseSelector(_ start: Cursor) throws -> (selector: any Selector, rest: Cursor) {
+    let (first, afterFirst) = try parseWord(start)
+    var selector: any Selector = TagSelector(tag: first.lowercased())
+    var cursor = afterFirst.skippingWhitespace()
+    while let character = cursor.current, character != "{" {
+        let (descendant, afterDescendant) = try parseWord(cursor)
+        selector = DescendantSelector(ancestor: selector, descendant: TagSelector(tag: descendant.lowercased()))
+        cursor = afterDescendant.skippingWhitespace()
+    }
+    return (selector, cursor)
+}
+
+private func parseDeclaration(_ start: Cursor) throws -> (property: String, value: String, rest: Cursor) {
+    let (property, afterProperty) = try parseWord(start)
+    let beforeColon = afterProperty.skippingWhitespace()
+    guard beforeColon.current == ":" else { throw ParseError.unexpected }
+    let (value, afterValue) = try parseWord(beforeColon.advanced().skippingWhitespace())
+    return (property.lowercased(), value.lowercased(), afterValue)
+}
+
+private func parseWord(_ start: Cursor) throws -> (value: String, rest: Cursor) {
+    var cursor = start
+    while let character = cursor.current, character.isLetter || character.isNumber || "#-.%".contains(character) {
+        cursor = cursor.advanced()
+    }
+    guard cursor.index > start.index else { throw ParseError.unexpected }
+    return (String(start.characters[start.index ..< cursor.index]), cursor)
+}
+
+private func skip(until stops: Set<Character>, _ start: Cursor) -> (stop: Character?, rest: Cursor) {
+    var cursor = start
+    while let character = cursor.current {
+        if stops.contains(character) { return (character, cursor) }
+        cursor = cursor.advanced()
+    }
+    return (nil, cursor)
 }
