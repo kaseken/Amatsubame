@@ -23,7 +23,7 @@ final class Browser {
         Task { @MainActor in
             do {
                 let body = try await HTTPClient().request(url)
-                canvas.displayList = paintTree(layoutDocument(HTMLParser(body).parse()))
+                canvas.displayCommands = displayCommands(layoutDocument(HTMLParser(body).parse()))
             } catch {
                 fputs("Error: \(error)\n", stderr)
             }

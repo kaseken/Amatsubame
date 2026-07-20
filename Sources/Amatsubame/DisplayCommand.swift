@@ -3,7 +3,7 @@ import AppKit
 protocol DisplayCommand {
     var top: Double { get }
     var bottom: Double { get }
-    func draw(scroll: Double)
+    func draw(scrollY: Double)
 }
 
 struct DrawText: DisplayCommand {
@@ -20,8 +20,8 @@ struct DrawText: DisplayCommand {
         y + font.ascender + font.descent
     }
 
-    func draw(scroll: Double) {
-        let point = NSPoint(x: x, y: y - scroll)
+    func draw(scrollY: Double) {
+        let point = NSPoint(x: x, y: y - scrollY)
         (text as NSString).draw(at: point, withAttributes: [
             .font: font,
             .foregroundColor: NSColor.black,
@@ -44,8 +44,8 @@ struct DrawRect: DisplayCommand {
         y + height
     }
 
-    func draw(scroll: Double) {
+    func draw(scrollY: Double) {
         color.setFill()
-        NSRect(x: x, y: y - scroll, width: width, height: height).fill()
+        NSRect(x: x, y: y - scrollY, width: width, height: height).fill()
     }
 }

@@ -42,8 +42,8 @@ func layoutDocument(_ node: HTMLNode) -> LayoutBox {
     )
 }
 
-func paintTree(_ box: LayoutBox) -> [DisplayCommand] {
-    paint(box) + box.children.flatMap(paintTree)
+func displayCommands(_ box: LayoutBox) -> [DisplayCommand] {
+    boxCommands(box) + box.children.flatMap(displayCommands)
 }
 
 private enum LayoutMode {
@@ -190,7 +190,7 @@ private func positionLines(
     return (positioned.words, positioned.cursorY)
 }
 
-private func paint(_ box: LayoutBox) -> [DisplayCommand] {
+private func boxCommands(_ box: LayoutBox) -> [DisplayCommand] {
     let background: [DisplayCommand] = if case let .element(tag, _, _) = box.node, tag == "pre" {
         [DrawRect(x: box.x, y: box.y, width: box.width, height: box.height, color: .lightGray)]
     } else {
