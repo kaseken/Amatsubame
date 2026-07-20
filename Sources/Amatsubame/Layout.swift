@@ -8,7 +8,7 @@ enum Layout {
     static let scrollStep = 100.0
 }
 
-let blockElements: Set<String> = [
+private let blockElements: Set<String> = [
     "html", "body", "article", "section", "nav", "aside",
     "h1", "h2", "h3", "h4", "h5", "h6", "hgroup", "header", "footer", "address",
     "p", "hr", "pre", "blockquote", "ol", "ul", "menu", "li", "dl", "dt", "dd",
@@ -16,24 +16,36 @@ let blockElements: Set<String> = [
     "details", "summary",
 ]
 
-struct LayoutBox {
-    let node: HTMLNode
+private struct BoxFrame {
     let x: Double
     let y: Double
     let width: Double
     let height: Double
-    let children: [LayoutBox]
-    let words: [PositionedWord]
 }
 
-struct PositionedWord {
+private enum LayoutBox {
+    case block(node: HTMLNode, frame: BoxFrame, children: [LayoutBox])
+    case inline(node: HTMLNode, frame: BoxFrame, words: [PositionedWord])
+
+    var frame: BoxFrame {
+        switch self {
+        case let .block(_, frame, _), let .inline(_, frame, _): frame
+        }
+    }
+}
+
+private struct PositionedWord {
     let x: Double
     let y: Double
     let text: String
     let font: NSFont
 }
 
-func layoutDocument(_ node: HTMLNode) -> LayoutBox {
+func displayCommands(for node: HTMLNode) -> [DisplayCommand] {
+    displayCommands(for: layoutDocument(node))
+}
+
+private func layoutDocument(_ node: HTMLNode) -> LayoutBox {
     layoutBlock(
         node,
         x: Layout.horizontalEdgeMargin,
@@ -42,8 +54,24 @@ func layoutDocument(_ node: HTMLNode) -> LayoutBox {
     )
 }
 
-func displayCommands(_ box: LayoutBox) -> [DisplayCommand] {
-    boxCommands(box) + box.children.flatMap(displayCommands)
+private func displayCommands(for box: LayoutBox) -> [DisplayCommand] {
+    switch box {
+    case let .block(node, frame, children):
+        boxCommands(node: node, frame: frame) + children.flatMap { displayCommands(for: $0) }
+    case let .inline(node, frame, words):
+        boxCommands(node: node, frame: frame)
+            + words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font) }
+    }
+}
+
+private func boxCommands(node: HTMLNode, frame: BoxFrame) -> [DisplayCommand] {
+    guard case let .element(tag, _, _) = node else { return [] }
+    return switch tag {
+    case "pre":
+        [DrawRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height, color: .lightGray)]
+    default:
+        []
+    }
 }
 
 private enum LayoutMode {
@@ -55,39 +83,47 @@ private func layoutBlock(_ node: HTMLNode, x: Double, y: Double, width: Double) 
     switch layoutMode(node) {
     case .block:
         let children = layoutStackedChildren(childNodes(node), x: x, y: y, width: width)
-        let height = children.reduce(0) { $0 + $1.height }
-        return LayoutBox(node: node, x: x, y: y, width: width, height: height, children: children, words: [])
+        let height = children.reduce(0) { $0 + $1.frame.height }
+        return .block(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), children: children)
     case .inline:
         let lines = wrapIntoLines(node, width: width)
         let (words, height) = positionLines(lines, originX: x, originY: y)
-        return LayoutBox(node: node, x: x, y: y, width: width, height: height, children: [], words: words)
+        return .inline(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), words: words)
     }
 }
 
 private func layoutStackedChildren(_ nodes: [HTMLNode], x: Double, y: Double, width: Double) -> [LayoutBox] {
     guard let first = nodes.first else { return [] }
     let box = layoutBlock(first, x: x, y: y, width: width)
-    return [box] + layoutStackedChildren(Array(nodes.dropFirst()), x: x, y: box.y + box.height, width: width)
+    return [box] + layoutStackedChildren(Array(nodes.dropFirst()), x: x, y: box.frame.y + box.frame.height, width: width)
 }
 
 private func layoutMode(_ node: HTMLNode) -> LayoutMode {
     switch node {
-    case .text:
-        return .inline
+    case .text: .inline
     case let .element(_, _, children):
-        if children.contains(where: isBlockElement) { return .block }
-        return children.isEmpty ? .block : .inline
+        if children.isEmpty || children.contains(where: isBlockElement) {
+            .block
+        } else {
+            .inline
+        }
     }
 }
 
 private func isBlockElement(_ node: HTMLNode) -> Bool {
-    if case let .element(tag, _, _) = node { return blockElements.contains(tag) }
-    return false
+    if case let .element(tag, _, _) = node {
+        blockElements.contains(tag)
+    } else {
+        false
+    }
 }
 
 private func childNodes(_ node: HTMLNode) -> [HTMLNode] {
-    if case let .element(_, _, children) = node { return children }
-    return []
+    if case let .element(_, _, children) = node {
+        children
+    } else {
+        []
+    }
 }
 
 private struct FontStyle {
@@ -140,7 +176,10 @@ private struct WrapState {
     let cursorX: Double
 
     func breakingLine() -> WrapState {
-        currentLine.isEmpty ? self : WrapState(lines: lines + [currentLine], currentLine: [], cursorX: 0)
+        if currentLine.isEmpty {
+            return self
+        }
+        return WrapState(lines: lines + [currentLine], currentLine: [], cursorX: 0)
     }
 }
 
@@ -152,7 +191,11 @@ private func wrapIntoLines(_ node: HTMLNode, width: Double) -> [[WrappedWord]] {
             return state.breakingLine()
         case let .word(word, font):
             let wordWidth = font.width(of: word)
-            let wrapped = state.cursorX + wordWidth > width ? state.breakingLine() : state
+            let wrapped = if state.cursorX + wordWidth > width {
+                state.breakingLine()
+            } else {
+                state
+            }
             let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font)
             return WrapState(
                 lines: wrapped.lines,
@@ -188,14 +231,4 @@ private func positionLines(
         return PositionState(words: state.words + words, cursorY: baseline + 1.25 * maxDescent)
     }
     return (positioned.words, positioned.cursorY)
-}
-
-private func boxCommands(_ box: LayoutBox) -> [DisplayCommand] {
-    let background: [DisplayCommand] = if case let .element(tag, _, _) = box.node, tag == "pre" {
-        [DrawRect(x: box.x, y: box.y, width: box.width, height: box.height, color: .lightGray)]
-    } else {
-        []
-    }
-    let texts = box.words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font) }
-    return background + texts
 }

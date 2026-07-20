@@ -3,7 +3,7 @@ import AppKit
 import Testing
 
 private func textCommands(_ html: String) -> [DrawText] {
-    displayCommands(layoutDocument(parse(html))).compactMap { $0 as? DrawText }
+    displayCommands(for: parse(html)).compactMap { $0 as? DrawText }
 }
 
 struct LayoutTests {
@@ -83,6 +83,6 @@ struct LayoutTests {
     }
 
     @Test func `pre element paints a background rectangle`() {
-        #expect(displayCommands(layoutDocument(parse("<pre>code</pre>"))).contains { $0 is DrawRect })
+        #expect(displayCommands(for: parse("<pre>code</pre>")).contains { $0 is DrawRect })
     }
 }
