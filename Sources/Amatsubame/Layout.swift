@@ -163,6 +163,8 @@ private enum InlineToken {
     case lineBreak
 }
 
+private let nonRenderedTags: Set<String> = ["head", "title", "style", "script"]
+
 private func inlineTokens(_ node: StyledNode) -> [InlineToken] {
     switch node.node {
     case let .text(text):
@@ -171,6 +173,7 @@ private func inlineTokens(_ node: StyledNode) -> [InlineToken] {
         return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), wordFont, color) }
     case let .element(tag, _, _):
         if tag == "br" { return [.lineBreak] }
+        if nonRenderedTags.contains(tag) { return [] }
         return node.children.flatMap(inlineTokens)
     }
 }

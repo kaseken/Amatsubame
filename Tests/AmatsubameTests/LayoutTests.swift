@@ -114,6 +114,18 @@ struct LayoutTests {
         #expect(first.x == second.x)
     }
 
+    @Test func `title text is not rendered`() throws {
+        let list = try displayCommands(for: style(parse("<title>Example</title><p>hi</p>"), rules: sortedByCascade(defaultStyleRules)))
+            .map { try #require($0 as? DrawText) }
+        #expect(list.map(\.text) == ["hi"])
+    }
+
+    @Test func `style element css is not rendered`() throws {
+        let list = try displayCommands(for: style(parse("<style>body{color:red}</style><p>hi</p>"), rules: sortedByCascade(defaultStyleRules)))
+            .map { try #require($0 as? DrawText) }
+        #expect(list.map(\.text) == ["hi"])
+    }
+
     @Test func `pre element paints a background rectangle`() throws {
         let commands = displayCommands(for: style(parse("<pre>code</pre>"), rules: sortedByCascade(defaultStyleRules)))
         #expect(commands.count == 2)

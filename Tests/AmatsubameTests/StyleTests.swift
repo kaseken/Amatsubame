@@ -54,4 +54,19 @@ struct StyleTests {
         )
         #expect(element.style[expectation.property] == expectation.value)
     }
+
+    @Test func `embedded style element yields its css source`() {
+        #expect(embeddedStyleSheets(parse("<style>body{color:red}</style>")) == ["body{color:red}"])
+    }
+
+    @Test func `document without a style element yields no stylesheets`() {
+        #expect(embeddedStyleSheets(parse("<p>hi</p>")).isEmpty)
+    }
+
+    @Test func `embedded stylesheet rules apply to the tree`() throws {
+        let css = try #require(embeddedStyleSheets(parse("<style>p{color:red}</style><p>hi</p>")).first)
+        let rules = sortedByCascade(defaultStyleRules + CSSParser(css).parse())
+        let paragraph = try #require(firstElement(styledTree("<p>hi</p>", rules: rules), tag: "p"))
+        #expect(paragraph.style["color"] == "red")
+    }
 }

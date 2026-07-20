@@ -76,6 +76,14 @@ func linkedStyleSheetHrefs(_ node: HTMLNode) -> [String] {
     return ownHref + children.flatMap(linkedStyleSheetHrefs)
 }
 
+func embeddedStyleSheets(_ node: HTMLNode) -> [String] {
+    guard case let .element(tag, _, children) = node else { return [] }
+    let ownCSS: [String] = tag == "style"
+        ? [children.compactMap { if case let .text(css) = $0 { css } else { nil } }.joined()]
+        : []
+    return ownCSS.filter { !$0.isEmpty } + children.flatMap(embeddedStyleSheets)
+}
+
 private func resolvedFontSize(_ value: String?, parentStyle: [String: String]) -> String {
     let fallback = inheritedDefaults["font-size"]!
     guard let value else { return fallback }

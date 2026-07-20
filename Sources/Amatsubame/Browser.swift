@@ -25,7 +25,8 @@ final class Browser {
                 let body = try await HTTPClient().request(url)
                 let tree = HTMLParser(body).parse()
                 let linkedRules = await linkedStyleRules(for: tree, pageURL: url)
-                let styled = style(tree, rules: sortedByCascade(defaultStyleRules + linkedRules))
+                let embeddedRules = embeddedStyleSheets(tree).flatMap { CSSParser($0).parse() }
+                let styled = style(tree, rules: sortedByCascade(defaultStyleRules + linkedRules + embeddedRules))
                 canvas.displayCommands = displayCommands(for: styled)
             } catch {
                 fputs("Error: \(error)\n", stderr)
