@@ -15,81 +15,93 @@ struct Layout {
     static let scrollStep = 100.0
     private static let defaultFontSize = 16.0
 
-    private(set) var displayList: [DisplayItem] = []
-    private var cursorX = Layout.horizontalEdgeMargin
-    private var cursorY = Layout.verticalEdgeMargin
-    private var fontWeight: NSFont.Weight = .regular
-    private var isFontItalic = false
-    private var fontSize = Layout.defaultFontSize
-
-    /// Words on the current line awaiting baseline alignment by ``commitLine()``.
-    private var line: [(x: Double, word: String, font: NSFont)] = []
+    let displayList: [DisplayItem]
 
     init(_ tree: HTMLNode) {
-        arrange(node: tree)
-        commitLine()
+        var state = State()
+        Layout.arrange(node: tree, &state)
+        Layout.commitLine(&state)
+        displayList = state.displayList
     }
 
-    private mutating func arrange(node: HTMLNode) {
+    private struct State {
+        var displayList: [DisplayItem] = []
+        var cursorX = Layout.horizontalEdgeMargin
+        var cursorY = Layout.verticalEdgeMargin
+        var fontWeight: NSFont.Weight = .regular
+        var isFontItalic = false
+        var fontSize = Layout.defaultFontSize
+        var line: [(x: Double, word: String, font: NSFont)] = []
+    }
+
+    private static func arrange(node: HTMLNode, _ state: inout State) {
         switch node {
         case let .text(text):
             for word in text.split(whereSeparator: \.isWhitespace) {
-                appendWordToCurrentLine(String(word))
+                appendWordToCurrentLine(String(word), &state)
             }
         case let .element(tag, _, children):
-            applyOpeningTagFormatting(tag)
-            for child in children {
-                arrange(node: child)
+            applyTagFormatting(tag, &state) { state in
+                for child in children {
+                    arrange(node: child, &state)
+                }
             }
-            applyClosingTagFormatting(tag)
         }
     }
 
-    private mutating func applyOpeningTagFormatting(_ tag: String) {
+    private static func applyTagFormatting(
+        _ tag: String, _ state: inout State, around body: (inout State) -> Void,
+    ) {
+        applyOpeningTagFormatting(tag, &state)
+        body(&state)
+        applyClosingTagFormatting(tag, &state)
+    }
+
+    private static func applyOpeningTagFormatting(_ tag: String, _ state: inout State) {
         switch tag {
-        case "b": fontWeight = .bold
-        case "i": isFontItalic = true
-        case "small": fontSize -= 2
-        case "big": fontSize += 4
-        case "br": commitLine()
+        case "b": state.fontWeight = .bold
+        case "i": state.isFontItalic = true
+        case "small": state.fontSize -= 2
+        case "big": state.fontSize += 4
+        case "br": commitLine(&state)
         default: break
         }
     }
 
-    private mutating func applyClosingTagFormatting(_ tag: String) {
+    private static func applyClosingTagFormatting(_ tag: String, _ state: inout State) {
         switch tag {
-        case "b": fontWeight = .regular
-        case "i": isFontItalic = false
-        case "small": fontSize += 2
-        case "big": fontSize -= 4
+        case "b": state.fontWeight = .regular
+        case "i": state.isFontItalic = false
+        case "small": state.fontSize += 2
+        case "big": state.fontSize -= 4
         case "p":
-            commitLine()
-            cursorY += Layout.verticalEdgeMargin
+            commitLine(&state)
+            state.cursorY += verticalEdgeMargin
         default: break
         }
     }
 
-    private mutating func appendWordToCurrentLine(_ word: String) {
-        let font = Fonts.get(size: fontSize, weight: fontWeight, italic: isFontItalic)
+    private static func appendWordToCurrentLine(_ word: String, _ state: inout State) {
+        let font = Fonts.get(size: state.fontSize, weight: state.fontWeight, italic: state.isFontItalic)
         let wordWidth = font.width(of: word)
-        if cursorX + wordWidth + Layout.horizontalEdgeMargin > Layout.canvasWidth {
-            commitLine()
+        if state.cursorX + wordWidth + horizontalEdgeMargin > canvasWidth {
+            commitLine(&state)
         }
-        line.append((x: cursorX, word: word, font: font))
-        cursorX += wordWidth + font.width(of: " ")
+        state.line.append((x: state.cursorX, word: word, font: font))
+        state.cursorX += wordWidth + font.width(of: " ")
     }
 
-    private mutating func commitLine() {
-        guard !line.isEmpty else { return }
-        let maxAscent = line.map(\.font.ascender).max() ?? 0
-        let baseline = cursorY + 1.25 * maxAscent
-        for item in line {
+    private static func commitLine(_ state: inout State) {
+        guard !state.line.isEmpty else { return }
+        let maxAscent = state.line.map(\.font.ascender).max() ?? 0
+        let baseline = state.cursorY + 1.25 * maxAscent
+        for item in state.line {
             let y = baseline - item.font.ascender
-            displayList.append(DisplayItem(x: item.x, y: y, text: item.word, font: item.font))
+            state.displayList.append(DisplayItem(x: item.x, y: y, text: item.word, font: item.font))
         }
-        let maxDescent = line.map(\.font.descent).max() ?? 0
-        cursorY = baseline + 1.25 * maxDescent
-        cursorX = Layout.horizontalEdgeMargin
-        line = []
+        let maxDescent = state.line.map(\.font.descent).max() ?? 0
+        state.cursorY = baseline + 1.25 * maxDescent
+        state.cursorX = horizontalEdgeMargin
+        state.line = []
     }
 }
