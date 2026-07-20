@@ -87,9 +87,15 @@ func embeddedStyleSheets(_ node: HTMLNode) -> [String] {
 private func resolvedFontSize(_ value: String?, parentStyle: [String: String]) -> String {
     let fallback = inheritedDefaults["font-size"]!
     guard let value else { return fallback }
-    guard value.hasSuffix("%") else { return value }
-    let percent = Double(value.dropLast()) ?? 100
     let parentValue = parentStyle["font-size"] ?? fallback
     let parentPixels = Double(parentValue.dropLast(2)) ?? 16
-    return "\(percent / 100 * parentPixels)px"
+    if value.hasSuffix("%") {
+        let percent = Double(value.dropLast()) ?? 100
+        return "\(percent / 100 * parentPixels)px"
+    }
+    if value.hasSuffix("em") {
+        let ems = Double(value.dropLast(2)) ?? 1
+        return "\(ems * parentPixels)px"
+    }
+    return value
 }

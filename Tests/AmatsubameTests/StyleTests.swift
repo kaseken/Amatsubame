@@ -38,6 +38,12 @@ struct StyleTests {
         #expect(span.style["font-size"] == "10.0px")
     }
 
+    @Test func `em font-size resolves against the parent`() throws {
+        let rules = sortedByCascade(CSSParser("div { font-size: 20px; } span { font-size: 1.5em; }").parse())
+        let span = try #require(firstElement(styledTree("<div><span>hi</span></div>", rules: rules), tag: "span"))
+        #expect(span.style["font-size"] == "30.0px")
+    }
+
     @Test(arguments: [
         (tag: "a", property: "color", value: "blue"),
         (tag: "i", property: "font-style", value: "italic"),
