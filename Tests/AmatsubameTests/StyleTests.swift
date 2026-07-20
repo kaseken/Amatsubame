@@ -37,4 +37,21 @@ struct StyleTests {
         let span = try #require(firstElement(styledTree("<div><span>hi</span></div>", rules: rules), tag: "span"))
         #expect(span.style["font-size"] == "10.0px")
     }
+
+    @Test(arguments: [
+        (tag: "a", property: "color", value: "blue"),
+        (tag: "i", property: "font-style", value: "italic"),
+        (tag: "b", property: "font-weight", value: "bold"),
+        (tag: "pre", property: "background-color", value: "gray"),
+        (tag: "small", property: "font-size", value: "14.4px"),
+        (tag: "big", property: "font-size", value: "17.6px"),
+    ])
+    func `default stylesheet styles each built-in tag`(
+        _ expectation: (tag: String, property: String, value: String),
+    ) throws {
+        let element = try #require(
+            firstElement(styledTree("<\(expectation.tag)>hi</\(expectation.tag)>"), tag: expectation.tag),
+        )
+        #expect(element.style[expectation.property] == expectation.value)
+    }
 }

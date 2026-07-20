@@ -42,10 +42,6 @@ private struct PositionedWord {
     let color: NSColor
 }
 
-func displayCommands(for node: HTMLNode) -> [DisplayCommand] {
-    displayCommands(for: style(node, rules: sortedByCascade(defaultStyleRules)))
-}
-
 func displayCommands(for styled: StyledNode) -> [DisplayCommand] {
     displayCommands(for: layoutDocument(styled))
 }
