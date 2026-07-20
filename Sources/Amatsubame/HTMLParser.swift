@@ -102,24 +102,29 @@ private extension [OpenElement] {
         case tag(String)
         case text
         case end
+
+        var isHeadContent: Bool {
+            if case let .tag(name) = self { headTags.contains(name) } else { false }
+        }
+
+        func isTag(name: String) -> Bool {
+            if case let .tag(tag) = self { tag == name } else { false }
+        }
     }
 
     private func nextImplicitTag(before next: NextToken) -> String? {
         let openTags = map(\.tag)
-        let nextTag: String? = if case let .tag(name) = next { name } else { nil }
-        let isHeadContent = nextTag.map(headTags.contains) ?? false
-
         if openTags.isEmpty {
-            if nextTag == "html" { return nil }
+            if next.isTag(name: "html") { return nil }
             return "html"
         }
         if openTags == ["html"] {
-            if nextTag == "head" || nextTag == "body" || nextTag == "/html" { return nil }
-            if isHeadContent { return "head" }
+            if next.isTag(name: "head") || next.isTag(name: "body") || next.isTag(name: "/html") { return nil }
+            if next.isHeadContent { return "head" }
             return "body"
         }
         if openTags == ["html", "head"] {
-            if nextTag == "/head" || isHeadContent { return nil }
+            if next.isTag(name: "/head") || next.isHeadContent { return nil }
             return "/head"
         }
         return nil
