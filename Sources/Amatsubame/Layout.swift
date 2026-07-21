@@ -40,10 +40,28 @@ private struct PositionedWord {
     let text: String
     let font: NSFont
     let color: NSColor
+    let href: String?
+}
+
+struct LinkTarget {
+    let rect: Rect
+    let href: String
+}
+
+struct PageLayout {
+    let commands: [DisplayCommand]
+    let links: [LinkTarget]
+    let height: Double
+}
+
+func layoutPage(for styled: StyledNode) -> PageLayout {
+    let root = layoutDocument(styled)
+    let (commands, links) = flatten(root)
+    return PageLayout(commands: commands, links: links, height: root.frame.height)
 }
 
 func displayCommands(for styled: StyledNode) -> [DisplayCommand] {
-    displayCommands(for: layoutDocument(styled))
+    layoutPage(for: styled).commands
 }
 
 private func layoutDocument(_ node: StyledNode) -> LayoutBox {
@@ -55,13 +73,27 @@ private func layoutDocument(_ node: StyledNode) -> LayoutBox {
     )
 }
 
-private func displayCommands(for box: LayoutBox) -> [DisplayCommand] {
+private func flatten(_ box: LayoutBox) -> (commands: [DisplayCommand], links: [LinkTarget]) {
     switch box {
     case let .block(node, frame, children):
-        boxCommands(for: node, frame: frame) + children.flatMap { displayCommands(for: $0) }
+        let childResults = children.map(flatten)
+        return (
+            boxCommands(for: node, frame: frame) + childResults.flatMap(\.commands),
+            childResults.flatMap(\.links),
+        )
     case let .inline(node, frame, words):
-        boxCommands(for: node, frame: frame)
-            + words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font, color: $0.color) }
+        let texts = words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font, color: $0.color) }
+        let links = words.compactMap { word -> LinkTarget? in
+            guard let href = word.href else { return nil }
+            let rect = Rect(
+                x: word.x,
+                y: word.y,
+                width: word.font.width(of: word.text),
+                height: word.font.ascender + word.font.descent,
+            )
+            return LinkTarget(rect: rect, href: href)
+        }
+        return (boxCommands(for: node, frame: frame) + texts, links)
     }
 }
 
@@ -159,22 +191,23 @@ private func hexColor(_ value: String) -> NSColor? {
 }
 
 private enum InlineToken {
-    case word(String, NSFont, NSColor)
+    case word(String, NSFont, NSColor, String?)
     case lineBreak
 }
 
 private let nonRenderedTags: Set<String> = ["head", "title", "style", "script"]
 
-private func inlineTokens(_ node: StyledNode) -> [InlineToken] {
+private func inlineTokens(_ node: StyledNode, linkHref: String? = nil) -> [InlineToken] {
     switch node.node {
     case let .text(text):
         let wordFont = font(for: node.style)
         let color = namedColor(node.style["color"])
-        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), wordFont, color) }
-    case let .element(tag, _, _):
+        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), wordFont, color, linkHref) }
+    case let .element(tag, attributes, _):
         if tag == "br" { return [.lineBreak] }
         if nonRenderedTags.contains(tag) { return [] }
-        return node.children.flatMap(inlineTokens)
+        let enclosingHref = tag == "a" ? (attributes["href"] ?? linkHref) : linkHref
+        return node.children.flatMap { inlineTokens($0, linkHref: enclosingHref) }
     }
 }
 
@@ -183,6 +216,7 @@ private struct WrappedWord {
     let word: String
     let font: NSFont
     let color: NSColor
+    let href: String?
 }
 
 private struct WrapState {
@@ -204,14 +238,14 @@ private func wrapIntoLines(_ node: StyledNode, width: Double) -> [[WrappedWord]]
         switch token {
         case .lineBreak:
             return state.breakingLine()
-        case let .word(word, font, color):
+        case let .word(word, font, color, href):
             let wordWidth = font.width(of: word)
             let wrapped = if state.cursorX + wordWidth > width {
                 state.breakingLine()
             } else {
                 state
             }
-            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font, color: color)
+            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font, color: color, href: href)
             return WrapState(
                 lines: wrapped.lines,
                 currentLine: wrapped.currentLine + [placement],
@@ -241,6 +275,7 @@ private func positionLines(
                 text: word.word,
                 font: word.font,
                 color: word.color,
+                href: word.href,
             )
         }
         let maxDescent = line.map(\.font.descent).max() ?? 0

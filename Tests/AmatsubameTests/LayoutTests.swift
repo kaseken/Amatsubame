@@ -144,6 +144,32 @@ struct LayoutTests {
         #expect(item.color == namedColor("blue"))
     }
 
+    @Test func `anchor with href produces a link target matching the word box`() throws {
+        let page = layoutPage(for: style(parse(#"<a href="/next">link</a>"#), rules: sortedByCascade(defaultStyleRules)))
+        #expect(page.links.count == 1)
+        let target = try #require(page.links.first)
+        #expect(target.href == "/next")
+        let text = try #require(page.commands.compactMap { $0 as? DrawText }.first)
+        #expect(target.rect.x == text.x)
+        #expect(target.rect.y == text.y)
+    }
+
+    @Test func `each word of a multi-word anchor is a link target`() {
+        let page = layoutPage(for: style(parse(#"<a href="/x">two words</a>"#), rules: sortedByCascade(defaultStyleRules)))
+        #expect(page.links.count == 2)
+        #expect(page.links.allSatisfy { $0.href == "/x" })
+    }
+
+    @Test func `text outside an anchor has no link targets`() {
+        let page = layoutPage(for: style(parse("plain text"), rules: sortedByCascade(defaultStyleRules)))
+        #expect(page.links.isEmpty)
+    }
+
+    @Test func `page layout reports a positive height for content`() {
+        let page = layoutPage(for: style(parse("hello"), rules: sortedByCascade(defaultStyleRules)))
+        #expect(page.height > 0)
+    }
+
     @Test func `background-color style paints a matching rectangle`() throws {
         let commands = displayCommands(
             for: style(parse(#"<div style="background-color:blue">x</div>"#), rules: sortedByCascade(defaultStyleRules)),
