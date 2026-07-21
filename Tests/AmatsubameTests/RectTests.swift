@@ -12,16 +12,16 @@ struct RectTests {
     }
 
     @Test func `contains includes the top-left edge`() {
-        #expect(rect.contains(x: 10, y: 20))
+        #expect(rect.contains(Point(x: 10, y: 20)))
     }
 
     @Test func `contains excludes the bottom-right edge`() {
-        #expect(!rect.contains(x: 40, y: 20))
-        #expect(!rect.contains(x: 10, y: 60))
+        #expect(!rect.contains(Point(x: 40, y: 20)))
+        #expect(!rect.contains(Point(x: 10, y: 60)))
     }
 
     @Test func `contains accepts an interior point and rejects an exterior one`() {
-        #expect(rect.contains(x: 39, y: 59))
-        #expect(!rect.contains(x: 5, y: 25))
+        #expect(rect.contains(Point(x: 39, y: 59)))
+        #expect(!rect.contains(Point(x: 5, y: 25)))
     }
 }

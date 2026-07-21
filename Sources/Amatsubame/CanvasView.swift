@@ -38,8 +38,8 @@ final class CanvasView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        browser?.handleClick(x: point.x, y: point.y)
+        let location = convert(event.locationInWindow, from: nil)
+        browser?.handleClick(at: Point(x: location.x, y: location.y))
     }
 
     override func keyDown(with event: NSEvent) {

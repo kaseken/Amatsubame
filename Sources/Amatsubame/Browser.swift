@@ -35,9 +35,9 @@ final class Browser {
         render()
     }
 
-    func handleClick(x: Double, y: Double) {
-        if y < chrome.bottom {
-            switch chrome.click(x: x, y: y, tabCount: tabs.count) {
+    func handleClick(at point: Point) {
+        if point.y < chrome.bottom {
+            switch chrome.click(at: point, tabCount: tabs.count) {
             case .newTab:
                 newTab(homeURL)
             case let .selectTab(index):
@@ -48,7 +48,7 @@ final class Browser {
                 break
             }
             render()
-        } else if let destination = activeTab.click(x: x, y: y - chrome.bottom) {
+        } else if let destination = activeTab.click(at: point.offsetBy(dy: -chrome.bottom)) {
             load(destination)
         }
     }

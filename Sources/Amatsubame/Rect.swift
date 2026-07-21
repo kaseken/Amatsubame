@@ -20,7 +20,7 @@ struct Rect {
         y + height
     }
 
-    func contains(x pointX: Double, y pointY: Double) -> Bool {
-        pointX >= left && pointX < right && pointY >= top && pointY < bottom
+    func contains(_ point: Point) -> Bool {
+        point.x >= left && point.x < right && point.y >= top && point.y < bottom
     }
 }

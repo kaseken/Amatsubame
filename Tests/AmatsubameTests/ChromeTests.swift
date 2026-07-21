@@ -18,27 +18,27 @@ struct ChromeTests {
 
     @Test func `clicking the new tab button requests a new tab`() {
         let chrome = Chrome()
-        let action = chrome.click(x: chrome.newTabRect.x + 1, y: chrome.newTabRect.y + 1, tabCount: 1)
+        let action = chrome.click(at: Point(x: chrome.newTabRect.x + 1, y: chrome.newTabRect.y + 1), tabCount: 1)
         #expect(action == .newTab)
     }
 
     @Test func `clicking a tab selects it`() {
         let chrome = Chrome()
         let bounds = chrome.tabRect(1)
-        let action = chrome.click(x: bounds.x + 1, y: bounds.y + 1, tabCount: 2)
+        let action = chrome.click(at: Point(x: bounds.x + 1, y: bounds.y + 1), tabCount: 2)
         #expect(action == .selectTab(1))
     }
 
     @Test func `clicking the back button requests back`() {
         let chrome = Chrome()
-        let action = chrome.click(x: chrome.backRect.x + 1, y: chrome.backRect.y + 1, tabCount: 1)
+        let action = chrome.click(at: Point(x: chrome.backRect.x + 1, y: chrome.backRect.y + 1), tabCount: 1)
         #expect(action == .back)
     }
 
     @Test func `clicking the address bar focuses and clears it`() {
         let chrome = Chrome()
         chrome.addressBar = "stale"
-        let action = chrome.click(x: chrome.addressRect.x + 1, y: chrome.addressRect.y + 1, tabCount: 1)
+        let action = chrome.click(at: Point(x: chrome.addressRect.x + 1, y: chrome.addressRect.y + 1), tabCount: 1)
         #expect(action == .focusAddress)
         #expect(chrome.focus == .addressBar)
         #expect(chrome.addressBar == "")

@@ -99,16 +99,16 @@ final class Chrome {
         return commands
     }
 
-    func click(x: Double, y: Double, tabCount: Int) -> Action {
+    func click(at point: Point, tabCount: Int) -> Action {
         focus = .none
-        if newTabRect.contains(x: x, y: y) { return .newTab }
-        if backRect.contains(x: x, y: y) { return .back }
-        if addressRect.contains(x: x, y: y) {
+        if newTabRect.contains(point) { return .newTab }
+        if backRect.contains(point) { return .back }
+        if addressRect.contains(point) {
             focus = .addressBar
             addressBar = ""
             return .focusAddress
         }
-        for index in 0 ..< tabCount where tabRect(index).contains(x: x, y: y) {
+        for index in 0 ..< tabCount where tabRect(index).contains(point) {
             return .selectTab(index)
         }
         return .none

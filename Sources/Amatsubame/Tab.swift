@@ -33,8 +33,8 @@ final class Tab {
         }
     }
 
-    func click(x: Double, y: Double) -> URL? {
-        hitTestLink(x: x, y: y + scrollY, links: links, relativeTo: url)
+    func click(at point: Point) -> URL? {
+        hitTestLink(at: point.offsetBy(dy: scrollY), links: links, relativeTo: url)
     }
 
     func goBack() -> URL? {
@@ -67,8 +67,8 @@ final class Tab {
     }
 }
 
-func hitTestLink(x: Double, y: Double, links: [LinkTarget], relativeTo baseURL: URL?) -> URL? {
-    for link in links.reversed() where link.rect.contains(x: x, y: y) {
+func hitTestLink(at point: Point, links: [LinkTarget], relativeTo baseURL: URL?) -> URL? {
+    for link in links.reversed() where link.rect.contains(point) {
         if let resolved = URL(string: link.href, relativeTo: baseURL) {
             return resolved.absoluteURL
         }
