@@ -18,6 +18,14 @@ enum Pages {
             .replacingOccurrences(of: "<!-- message -->", with: escaped(message))
     }
 
+    static func html(_ name: String) -> String {
+        resource(named: name, withExtension: "html")
+    }
+
+    static func script(_ name: String) -> String {
+        resource(named: name, withExtension: "js")
+    }
+
     private static func resource(named name: String, withExtension ext: String) -> String {
         guard let url = Bundle.module.url(forResource: name, withExtension: ext),
               let contents = try? String(contentsOf: url, encoding: .utf8)

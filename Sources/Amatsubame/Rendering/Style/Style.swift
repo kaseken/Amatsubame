@@ -78,6 +78,13 @@ func linkedStyleSheetHrefs(_ node: HTMLNode) -> [String] {
     return ownHref + children.flatMap(linkedStyleSheetHrefs)
 }
 
+func scriptSourceHrefs(_ node: HTMLNode) -> [String] {
+    guard case let .element(tag, attributes, children) = node else { return [] }
+    let ownSource: [String] =
+        tag == "script" ? attributes["src"].map { [$0] } ?? [] : []
+    return ownSource + children.flatMap(scriptSourceHrefs)
+}
+
 func embeddedStyleSheets(_ node: HTMLNode) -> [String] {
     guard case let .element(tag, _, children) = node else { return [] }
     let ownCSS: [String] = tag == "style"

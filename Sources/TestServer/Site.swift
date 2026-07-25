@@ -1,5 +1,13 @@
 import LocalHTTPServer
 
+private let jsPages: Set<String> = [
+    "/js-console",
+    "/js-queryselector",
+    "/js-click-preventdefault",
+    "/js-submit-preventdefault",
+    "/js-innerhtml",
+]
+
 struct Site {
     func handle(_ request: LocalHTTPServer.Request) -> LocalHTTPServer.Response {
         switch (request.method, request.path) {
@@ -11,6 +19,13 @@ struct Site {
             LocalHTTPServer.Response(body: Pages.form())
         case ("POST", "/messages"):
             LocalHTTPServer.Response(body: Pages.posted(decodedMessage(from: request.body) ?? ""))
+        case let ("GET", path) where jsPages.contains(path):
+            LocalHTTPServer.Response(body: Pages.html(String(path.dropFirst())))
+        case let ("GET", path) where path.hasSuffix(".js"):
+            LocalHTTPServer.Response(
+                contentType: "application/javascript; charset=utf-8",
+                body: Pages.script(String(path.dropFirst().dropLast(3))),
+            )
         default:
             LocalHTTPServer.Response(status: 404, reason: "Not Found", body: "Not Found")
         }

@@ -3,6 +3,7 @@ import AppKit
 struct LinkTarget {
     let rect: Rect
     let href: String
+    let nodePath: NodePath?
 }
 
 func linkTargets(for box: LayoutBox) -> [LinkTarget] {
@@ -18,7 +19,7 @@ func linkTargets(for box: LayoutBox) -> [LinkTarget] {
                 width: word.font.width(of: word.text),
                 height: word.font.ascender + word.font.descent,
             )
-            return LinkTarget(rect: rect, href: href)
+            return LinkTarget(rect: rect, href: href, nodePath: word.linkPath)
         }
     }
 }

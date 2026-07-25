@@ -55,6 +55,26 @@ struct HTMLNodeTests {
             tag: "input", attributes: ["name": "q", "value": "Ada"], children: [],
         ))
     }
+
+    @Test func `replacingChildren swaps a node's children without mutating the original`() {
+        let updated = sampleTree.replacingChildren(with: [.text("hi")], at: [0])
+        #expect(updated.node(at: [0]) == .element(tag: "body", attributes: [:], children: [.text("hi")]))
+        #expect(sampleTree.node(at: [0, 0]) == .element(
+            tag: "input", attributes: ["name": "q", "value": "Ada"], children: [],
+        ))
+    }
+
+    @Test func `elementPaths(matching:) returns the paths of every matching element`() throws {
+        let selector = try #require(CSSParser("input").selector())
+        #expect(sampleTree.elementPaths(matching: selector) == [[0, 0], [0, 1]])
+    }
+
+    @Test func `elementPaths(matching:) honors descendant selectors`() throws {
+        let selector = try #require(CSSParser("body input").selector())
+        #expect(sampleTree.elementPaths(matching: selector) == [[0, 0], [0, 1]])
+        let unmatched = try #require(CSSParser("form input").selector())
+        #expect(sampleTree.elementPaths(matching: unmatched).isEmpty)
+    }
 }
 
 private let sampleTree = HTMLNode.element(tag: "html", attributes: [:], children: [
