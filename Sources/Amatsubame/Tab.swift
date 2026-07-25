@@ -21,10 +21,11 @@ final class Tab {
             let linkedRules = await linkedStyleRules(for: tree, pageURL: url)
             let embeddedRules = embeddedStyleSheets(tree).flatMap { CSSParser($0).parse() }
             let styled = style(tree, rules: sortedByCascade(defaultStyleRules + linkedRules + embeddedRules))
-            let page = layoutPage(for: styled)
-            commands = page.commands
-            links = page.links
-            documentHeight = page.height
+            let box = layoutDocument(styled)
+            let (commands, links) = displayCommands(for: box)
+            self.commands = commands
+            self.links = links
+            documentHeight = box.height
             self.url = url
             history.append(url)
             scrollY = 0
