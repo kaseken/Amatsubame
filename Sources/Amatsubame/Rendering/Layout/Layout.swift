@@ -45,7 +45,7 @@ struct PositionedWord {
     let font: NSFont
     let color: NSColor
     let href: String?
-    let linkPath: NodePath?
+    let linkPath: NodePath? // この要素の親要素である<a>要素へのパス。クリック時にイベントを伝播するために使用する
 }
 
 struct PositionedFormControl {

@@ -83,7 +83,10 @@ final class ScriptRuntime {
     Node.prototype.getAttribute = function (name) { return __getAttribute(this.handle, name); };
     Node.prototype.addEventListener = function (type, listener) {
       LISTENERS[this.handle] = LISTENERS[this.handle] || {};
-      (LISTENERS[this.handle][type] = LISTENERS[this.handle][type] || []).push(listener);
+      if (!LISTENERS[this.handle][type]) {
+        LISTENERS[this.handle][type] = [];
+      }
+      LISTENERS[this.handle][type].push(listener);
     };
     Node.prototype.dispatchEvent = function (event) {
       var listeners = (LISTENERS[this.handle] && LISTENERS[this.handle][event.type]) || [];
