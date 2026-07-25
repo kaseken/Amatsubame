@@ -1,38 +1,19 @@
-import Foundation
 import LocalHTTPServer
 
-final class Site: @unchecked Sendable {
-    private var messages: [String] = ["Welcome! Leave a message below."]
-    private let lock = NSLock()
-
+struct Site {
     func handle(_ request: LocalHTTPServer.Request) -> LocalHTTPServer.Response {
         switch (request.method, request.path) {
         case ("GET", "/"):
-            return LocalHTTPServer.Response(body: Pages.showcase())
-        case ("GET", "/styles.css"):
-            return LocalHTTPServer.Response(contentType: "text/css; charset=utf-8", body: Pages.styles())
-        case ("GET", "/submissions"):
-            return LocalHTTPServer.Response(body: Pages.submissions(currentMessages()))
-        case ("POST", "/submit"):
-            if let message = decodedMessage(from: request.body), !message.isEmpty {
-                appendMessage(message)
-            }
-            return LocalHTTPServer.Response(body: Pages.submissions(currentMessages()))
+            LocalHTTPServer.Response(body: Pages.index())
+        case ("GET", "/rendering"):
+            LocalHTTPServer.Response(body: Pages.rendering())
+        case ("GET", "/form"):
+            LocalHTTPServer.Response(body: Pages.form())
+        case ("POST", "/messages"):
+            LocalHTTPServer.Response(body: Pages.posted(decodedMessage(from: request.body) ?? ""))
         default:
-            return LocalHTTPServer.Response(status: 404, reason: "Not Found", body: "Not Found")
+            LocalHTTPServer.Response(status: 404, reason: "Not Found", body: "Not Found")
         }
-    }
-
-    private func currentMessages() -> [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        return messages
-    }
-
-    private func appendMessage(_ message: String) {
-        lock.lock()
-        messages.append(message)
-        lock.unlock()
     }
 
     private func decodedMessage(from body: String) -> String? {

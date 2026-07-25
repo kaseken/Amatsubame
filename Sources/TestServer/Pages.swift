@@ -1,18 +1,21 @@
 import Foundation
 
 enum Pages {
-    static func showcase() -> String {
-        resource(named: "showcase", withExtension: "html")
+    static func index() -> String {
+        resource(named: "index", withExtension: "html")
     }
 
-    static func submissions(_ messages: [String]) -> String {
-        let listed = messages.map { "<p>\(escaped($0))</p>" }.joined(separator: "\n    ")
-        return resource(named: "submissions", withExtension: "html")
-            .replacingOccurrences(of: "<!-- messages -->", with: listed)
+    static func rendering() -> String {
+        resource(named: "rendering", withExtension: "html")
     }
 
-    static func styles() -> String {
-        resource(named: "styles", withExtension: "css")
+    static func form() -> String {
+        resource(named: "form", withExtension: "html")
+    }
+
+    static func posted(_ message: String) -> String {
+        resource(named: "posted", withExtension: "html")
+            .replacingOccurrences(of: "<!-- message -->", with: escaped(message))
     }
 
     private static func resource(named name: String, withExtension ext: String) -> String {

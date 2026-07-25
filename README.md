@@ -25,11 +25,6 @@ swift run TestServer                          # default port 8000; for another p
 swift run Amatsubame http://127.0.0.1:8000/   # in another terminal
 ```
 
-Routes:
-
-- `/` — a rendering showcase, including a form.
-- `/submissions` — lists messages submitted via the form.
-
 ## Requirements
 
 - macOS 12+
