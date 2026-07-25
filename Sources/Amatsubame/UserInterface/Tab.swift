@@ -15,6 +15,7 @@ final class Tab {
     private var formControls: [FormControlTarget] = []
     private var document: HTMLNode?
     private var rules: [CSSRule] = []
+    private var runtime: ScriptRuntime?
     private var focusedInputPath: NodePath?
     private var history: [URL] = []
     private var documentHeight = 0.0
@@ -37,6 +38,17 @@ final class Tab {
             self.url = url
             history.append(url)
             scrollY = 0
+            let sources = await scriptSources(for: tree, pageURL: url)
+            if sources.isEmpty {
+                runtime = nil
+            } else {
+                let scriptRuntime = ScriptRuntime(document: tree)
+                for source in sources {
+                    scriptRuntime.run(source)
+                }
+                document = scriptRuntime.document
+                runtime = scriptRuntime
+            }
             rebuild()
         } catch {
             fputs("Error: \(error)\n", stderr)
@@ -46,9 +58,12 @@ final class Tab {
     func click(at point: Point) -> ClickOutcome {
         let documentPoint = point.offsetBy(dy: scrollY)
         if let control = formControls.reversed().first(where: { $0.rect.contains(documentPoint) }) {
+            if !dispatchEvent(type: "click", at: control.nodePath) { return .redraw }
             return activate(control)
         }
-        if let destination = hitTestLink(at: documentPoint, links: links, relativeTo: url) {
+        if let link = links.reversed().first(where: { $0.rect.contains(documentPoint) }) {
+            if let linkPath = link.nodePath, !dispatchEvent(type: "click", at: linkPath) { return .redraw }
+            guard let destination = URL(string: link.href, relativeTo: url)?.absoluteURL else { return .none }
             return .navigate(destination)
         }
         if focusedInputPath != nil {
@@ -101,7 +116,40 @@ final class Tab {
               let action = form.action,
               let destination = URL(string: action, relativeTo: url)?.absoluteURL
         else { return .none }
+        if let formPath = formPath(containing: controlPath, in: document),
+           !dispatchEvent(type: "submit", at: formPath)
+        {
+            return .redraw
+        }
         return .submit(destination, body: form.encodedBody)
+    }
+
+    private func formPath(containing controlPath: NodePath, in root: HTMLNode) -> NodePath? {
+        for length in stride(from: controlPath.count, through: 0, by: -1) {
+            let candidate = Array(controlPath.prefix(length))
+            if case let .element(tag, _, _)? = root.node(at: candidate), tag == "form" { return candidate }
+        }
+        return nil
+    }
+
+    private func dispatchEvent(type: String, at path: NodePath) -> Bool {
+        guard let runtime else { return true }
+        runtime.document = document
+        let doDefault = runtime.dispatchEvent(type: type, at: path)
+        document = runtime.document
+        if !doDefault { rebuild() }
+        return doDefault
+    }
+
+    private func scriptSources(for tree: HTMLNode, pageURL: URL) async -> [String] {
+        var sources: [String] = []
+        for href in scriptSourceHrefs(tree) {
+            guard let scriptURL = URL(string: href, relativeTo: pageURL),
+                  let body = try? await HTTPClient().request(scriptURL)
+            else { continue }
+            sources.append(body)
+        }
+        return sources
     }
 
     private func editFocusedInput(_ transform: (String) -> String) -> Bool {

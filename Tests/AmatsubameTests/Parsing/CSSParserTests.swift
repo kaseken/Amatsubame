@@ -36,4 +36,17 @@ struct CSSParserTests {
         let declarations = CSSParser("margin:0;color:blue").body()
         #expect(declarations["color"] == "blue")
     }
+
+    @Test func `selector parses a single tag selector`() {
+        #expect((CSSParser("strong").selector() as? TagSelector)?.tag == "strong")
+    }
+
+    @Test func `selector parses a descendant selector`() throws {
+        let selector = try #require(CSSParser("body input").selector() as? DescendantSelector)
+        #expect((selector.descendant as? TagSelector)?.tag == "input")
+    }
+
+    @Test func `selector returns nil for empty input`() {
+        #expect(CSSParser("   ").selector() == nil)
+    }
 }

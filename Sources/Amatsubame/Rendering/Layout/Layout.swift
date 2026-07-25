@@ -45,6 +45,7 @@ struct PositionedWord {
     let font: NSFont
     let color: NSColor
     let href: String?
+    let linkPath: NodePath?
 }
 
 struct PositionedFormControl {
@@ -140,7 +141,7 @@ let inputWidth = 200.0
 
 private struct InlineFragment {
     enum Content {
-        case word(text: String, href: String?)
+        case word(text: String, href: String?, linkPath: NodePath?)
         case formControl(nodePath: NodePath, text: String, backgroundColor: NSColor, isButton: Bool)
     }
 
@@ -157,14 +158,16 @@ private enum InlineToken {
 
 private let nonRenderedTags: Set<String> = ["head", "title", "style", "script"]
 
-private func inlineTokens(_ node: StyledNode, nodePath: NodePath, linkHref: String? = nil) -> [InlineToken] {
+private func inlineTokens(
+    _ node: StyledNode, nodePath: NodePath, linkHref: String? = nil, linkPath: NodePath? = nil,
+) -> [InlineToken] {
     switch node.node {
     case let .text(text):
         let wordFont = font(for: node.style)
         let wordColor = color(for: node.style["color"])
         return text.split(whereSeparator: \.isWhitespace).map {
             .fragment(InlineFragment(
-                content: .word(text: String($0), href: linkHref),
+                content: .word(text: String($0), href: linkHref, linkPath: linkPath),
                 width: wordFont.width(of: String($0)),
                 font: wordFont,
                 color: wordColor,
@@ -176,9 +179,11 @@ private func inlineTokens(_ node: StyledNode, nodePath: NodePath, linkHref: Stri
         if tag == "input" || tag == "button" {
             return [.fragment(formControlFragment(node, tag: tag, attributes: attributes, nodePath: nodePath))]
         }
-        let enclosingHref = tag == "a" ? (attributes["href"] ?? linkHref) : linkHref
+        let isAnchor = tag == "a"
+        let enclosingHref = isAnchor ? (attributes["href"] ?? linkHref) : linkHref
+        let enclosingLinkPath = isAnchor ? nodePath : linkPath
         return node.children.enumerated().flatMap { index, child in
-            inlineTokens(child, nodePath: nodePath + [index], linkHref: enclosingHref)
+            inlineTokens(child, nodePath: nodePath + [index], linkHref: enclosingHref, linkPath: enclosingLinkPath)
         }
     }
 }
@@ -262,7 +267,7 @@ private func positionLines(
         let maxAscent = line.map(\.fragment.font.ascender).max() ?? 0
         let baseline = state.cursorY + 1.25 * maxAscent
         let words = line.compactMap { placed -> PositionedWord? in
-            guard case let .word(text, href) = placed.fragment.content else { return nil }
+            guard case let .word(text, href, linkPath) = placed.fragment.content else { return nil }
             let wordFont = placed.fragment.font
             return PositionedWord(
                 x: originX + placed.x,
@@ -271,6 +276,7 @@ private func positionLines(
                 font: wordFont,
                 color: placed.fragment.color,
                 href: href,
+                linkPath: linkPath,
             )
         }
         let formControls = line.compactMap { placed -> PositionedFormControl? in

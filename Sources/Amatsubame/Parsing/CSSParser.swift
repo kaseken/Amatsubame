@@ -46,6 +46,12 @@ struct CSSParser {
     func body() -> [String: String] {
         parseDeclarations(Cursor(characters: characters, index: 0)).declarations
     }
+
+    func selector() -> (any Selector)? {
+        let start = Cursor(characters: characters, index: 0).skippingWhitespace()
+        guard let (selector, _) = try? parseSelector(start) else { return nil }
+        return selector
+    }
 }
 
 private struct Cursor {
