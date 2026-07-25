@@ -36,10 +36,10 @@ final class Browser {
         render()
     }
 
-    private func load(_ url: URL) {
+    private func load(_ url: URL, body: String? = nil) {
         let tab = activeTab
         Task { @MainActor in
-            await tab.load(url)
+            await tab.load(url, body: body)
             render()
         }
     }
@@ -75,8 +75,18 @@ extension Browser: CanvasViewDelegate {
                 isAddressBarFocused = false
             }
             render()
-        } else if let destination = activeTab.click(at: point.offsetBy(dy: -Toolbar.height)) {
-            load(destination)
+        } else {
+            isAddressBarFocused = false
+            switch activeTab.click(at: point.offsetBy(dy: -Toolbar.height)) {
+            case let .navigate(destination):
+                load(destination)
+            case let .submit(destination, body):
+                load(destination, body: body)
+            case .redraw:
+                render()
+            case .none:
+                break
+            }
         }
     }
 
@@ -95,22 +105,33 @@ extension Browser: CanvasViewDelegate {
         }
 
         guard let character = event.characters?.first else { return }
-        if character == "\r" || character == "\n" {
-            if isAddressBarFocused {
-                if let url = URL(string: addressBar) { load(url) }
-                isAddressBarFocused = false
+
+        if !isAddressBarFocused {
+            if character == "\u{7F}" || character == "\u{8}" {
+                if activeTab.deleteBackward() { render() }
+            } else if isPrintable(character), activeTab.insertCharacter(character) {
+                render()
             }
+            return
+        }
+
+        if character == "\r" || character == "\n" {
+            if let url = URL(string: addressBar) { load(url) }
+            isAddressBarFocused = false
             render()
         } else if character == "\u{7F}" || character == "\u{8}" {
-            if isAddressBarFocused, !addressBar.isEmpty { addressBar.removeLast() }
+            if !addressBar.isEmpty { addressBar.removeLast() }
             render()
-        } else if isAddressBarFocused, let scalar = character.unicodeScalars.first,
-                  scalar.value >= 0x20, scalar.value < 0x7F
-        {
+        } else if isPrintable(character) {
             addressBar.append(character)
             render()
         }
     }
+}
+
+private func isPrintable(_ character: Character) -> Bool {
+    guard let scalar = character.unicodeScalars.first else { return false }
+    return scalar.value >= 0x20 && scalar.value < 0x7F
 }
 
 private let defaultURL = URL(string: "https://example.com/")!

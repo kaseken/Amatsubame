@@ -9,6 +9,7 @@ func color(for value: String?) -> NSColor {
     case "green": .green
     case "yellow": .yellow
     case "orange": .orange
+    case "lightblue": NSColor(red: 173 / 255, green: 216 / 255, blue: 230 / 255, alpha: 1)
     case "purple": .purple
     case "brown": .brown
     case "cyan": .cyan

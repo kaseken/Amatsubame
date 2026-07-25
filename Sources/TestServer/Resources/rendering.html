@@ -1,0 +1,21 @@
+<html>
+  <body>
+    <h1>Nested box and inline layout test</h1>
+
+    <div style="background-color: #cfe8ff">
+      Outer box. This inline text is laid out inside a block box, and the box
+      background paints its computed geometry: the width fills the full content
+      area, and the height grows to fit these wrapped lines.
+
+      <div style="background-color: #ffd9a0">
+        Inner box, nested inside the outer one, with its own background so you
+        can see it stacks correctly within the outer box. Inline runs are laid
+        out here too: <b>bold</b> and <i>italic</i> text that wraps across
+        several lines so the inner box height grows to fit its content.
+      </div>
+
+      Back in the outer box, below the inner box, so the outer box height
+      encloses both this text and the inner box.
+    </div>
+  </body>
+</html>

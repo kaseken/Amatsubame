@@ -25,11 +25,11 @@ struct BoxFrame {
 
 enum LayoutBox {
     case block(node: StyledNode, frame: BoxFrame, children: [LayoutBox])
-    case inline(node: StyledNode, frame: BoxFrame, words: [PositionedWord])
+    case inline(node: StyledNode, frame: BoxFrame, words: [PositionedWord], formControls: [PositionedFormControl])
 
     var frame: BoxFrame {
         switch self {
-        case let .block(_, frame, _), let .inline(_, frame, _): frame
+        case let .block(_, frame, _), let .inline(_, frame, _, _): frame
         }
     }
 
@@ -47,9 +47,23 @@ struct PositionedWord {
     let href: String?
 }
 
+struct PositionedFormControl {
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+    let nodePath: NodePath
+    let text: String
+    let font: NSFont
+    let color: NSColor
+    let backgroundColor: NSColor
+    let isButton: Bool
+}
+
 func layoutDocument(_ node: StyledNode) -> LayoutBox {
     layoutBlock(
         node,
+        nodePath: [],
         x: Layout.horizontalEdgeMargin,
         y: Layout.verticalEdgeMargin,
         width: Layout.canvasWidth - 2 * Layout.horizontalEdgeMargin,
@@ -61,23 +75,33 @@ private enum LayoutMode {
     case inline
 }
 
-private func layoutBlock(_ node: StyledNode, x: Double, y: Double, width: Double) -> LayoutBox {
+private func layoutBlock(_ node: StyledNode, nodePath: NodePath, x: Double, y: Double, width: Double) -> LayoutBox {
     switch layoutMode(node) {
     case .block:
-        let children = layoutStackedChildren(node.children, x: x, y: y, width: width)
+        let children = layoutStackedChildren(node.children, parentPath: nodePath, startIndex: 0, x: x, y: y, width: width)
         let height = children.reduce(0) { $0 + $1.frame.height }
         return .block(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), children: children)
     case .inline:
-        let lines = wrapIntoLines(node, width: width)
-        let (words, height) = positionLines(lines, originX: x, originY: y)
-        return .inline(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), words: words)
+        let lines = wrapIntoLines(node, nodePath: nodePath, width: width)
+        let (words, formControls, height) = positionLines(lines, originX: x, originY: y)
+        return .inline(
+            node: node,
+            frame: BoxFrame(x: x, y: y, width: width, height: height),
+            words: words,
+            formControls: formControls,
+        )
     }
 }
 
-private func layoutStackedChildren(_ nodes: [StyledNode], x: Double, y: Double, width: Double) -> [LayoutBox] {
+private func layoutStackedChildren(
+    _ nodes: [StyledNode], parentPath: NodePath, startIndex: Int, x: Double, y: Double, width: Double,
+) -> [LayoutBox] {
     guard let first = nodes.first else { return [] }
-    let box = layoutBlock(first, x: x, y: y, width: width)
-    return [box] + layoutStackedChildren(Array(nodes.dropFirst()), x: x, y: box.frame.y + box.frame.height, width: width)
+    let box = layoutBlock(first, nodePath: parentPath + [startIndex], x: x, y: y, width: width)
+    return [box] + layoutStackedChildren(
+        Array(nodes.dropFirst()), parentPath: parentPath, startIndex: startIndex + 1,
+        x: x, y: box.frame.y + box.frame.height, width: width,
+    )
 }
 
 private func layoutMode(_ node: StyledNode) -> LayoutMode {
@@ -112,38 +136,85 @@ private func pixels(_ value: String?) -> Double? {
     return Double(value.dropLast(2))
 }
 
+let inputWidth = 200.0
+
+private struct InlineFragment {
+    enum Content {
+        case word(text: String, href: String?)
+        case formControl(nodePath: NodePath, text: String, backgroundColor: NSColor, isButton: Bool)
+    }
+
+    let content: Content
+    let width: Double
+    let font: NSFont
+    let color: NSColor
+}
+
 private enum InlineToken {
-    case word(String, NSFont, NSColor, String?)
+    case fragment(InlineFragment)
     case lineBreak
 }
 
 private let nonRenderedTags: Set<String> = ["head", "title", "style", "script"]
 
-private func inlineTokens(_ node: StyledNode, linkHref: String? = nil) -> [InlineToken] {
+private func inlineTokens(_ node: StyledNode, nodePath: NodePath, linkHref: String? = nil) -> [InlineToken] {
     switch node.node {
     case let .text(text):
         let wordFont = font(for: node.style)
         let wordColor = color(for: node.style["color"])
-        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), wordFont, wordColor, linkHref) }
+        return text.split(whereSeparator: \.isWhitespace).map {
+            .fragment(InlineFragment(
+                content: .word(text: String($0), href: linkHref),
+                width: wordFont.width(of: String($0)),
+                font: wordFont,
+                color: wordColor,
+            ))
+        }
     case let .element(tag, attributes, _):
         if tag == "br" { return [.lineBreak] }
         if nonRenderedTags.contains(tag) { return [] }
+        if tag == "input" || tag == "button" {
+            return [.fragment(formControlFragment(node, tag: tag, attributes: attributes, nodePath: nodePath))]
+        }
         let enclosingHref = tag == "a" ? (attributes["href"] ?? linkHref) : linkHref
-        return node.children.flatMap { inlineTokens($0, linkHref: enclosingHref) }
+        return node.children.enumerated().flatMap { index, child in
+            inlineTokens(child, nodePath: nodePath + [index], linkHref: enclosingHref)
+        }
     }
 }
 
-private struct WrappedWord {
+private func formControlFragment(
+    _ node: StyledNode, tag: String, attributes: [String: String], nodePath: NodePath,
+) -> InlineFragment {
+    let text = tag == "input" ? (attributes["value"] ?? "") : textContent(node)
+    return InlineFragment(
+        content: .formControl(
+            nodePath: nodePath,
+            text: text,
+            backgroundColor: color(for: node.style["background-color"]),
+            isButton: tag == "button",
+        ),
+        width: inputWidth,
+        font: font(for: node.style),
+        color: color(for: node.style["color"]),
+    )
+}
+
+private func textContent(_ node: StyledNode) -> String {
+    switch node.node {
+    case let .text(text): text
+    case .element: node.children.map(textContent).joined()
+    }
+}
+
+private struct WrappedFragment {
     let x: Double
-    let word: String
-    let font: NSFont
-    let color: NSColor
-    let href: String?
+    let fragment: InlineFragment
 }
 
 private struct WrapState {
-    let lines: [[WrappedWord]]
-    let currentLine: [WrappedWord]
+    let lines: [[WrappedFragment]]
+    let currentLine: [WrappedFragment]
     let cursorX: Double
 
     func breakingLine() -> WrapState {
@@ -154,24 +225,23 @@ private struct WrapState {
     }
 }
 
-private func wrapIntoLines(_ node: StyledNode, width: Double) -> [[WrappedWord]] {
+private func wrapIntoLines(_ node: StyledNode, nodePath: NodePath, width: Double) -> [[WrappedFragment]] {
     let start = WrapState(lines: [], currentLine: [], cursorX: 0)
-    let placed = inlineTokens(node).reduce(start) { state, token in
+    let placed = inlineTokens(node, nodePath: nodePath).reduce(start) { state, token in
         switch token {
         case .lineBreak:
             return state.breakingLine()
-        case let .word(word, font, color, href):
-            let wordWidth = font.width(of: word)
-            let wrapped = if state.cursorX + wordWidth > width {
+        case let .fragment(fragment):
+            let wrapped = if state.cursorX + fragment.width > width {
                 state.breakingLine()
             } else {
                 state
             }
-            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font, color: color, href: href)
+            let placement = WrappedFragment(x: wrapped.cursorX, fragment: fragment)
             return WrapState(
                 lines: wrapped.lines,
                 currentLine: wrapped.currentLine + [placement],
-                cursorX: wrapped.cursorX + wordWidth + font.width(of: " "),
+                cursorX: wrapped.cursorX + fragment.width + fragment.font.width(of: " "),
             )
         }
     }
@@ -180,28 +250,53 @@ private func wrapIntoLines(_ node: StyledNode, width: Double) -> [[WrappedWord]]
 
 private struct PositionState {
     let words: [PositionedWord]
+    let formControls: [PositionedFormControl]
     let cursorY: Double
 }
 
 private func positionLines(
-    _ lines: [[WrappedWord]], originX: Double, originY: Double,
-) -> (words: [PositionedWord], height: Double) {
-    let start = PositionState(words: [], cursorY: 0)
+    _ lines: [[WrappedFragment]], originX: Double, originY: Double,
+) -> (words: [PositionedWord], formControls: [PositionedFormControl], height: Double) {
+    let start = PositionState(words: [], formControls: [], cursorY: 0)
     let positioned = lines.reduce(start) { state, line in
-        let maxAscent = line.map(\.font.ascender).max() ?? 0
+        let maxAscent = line.map(\.fragment.font.ascender).max() ?? 0
         let baseline = state.cursorY + 1.25 * maxAscent
-        let words = line.map { word in
-            PositionedWord(
-                x: originX + word.x,
-                y: originY + baseline - word.font.ascender,
-                text: word.word,
-                font: word.font,
-                color: word.color,
-                href: word.href,
+        let words = line.compactMap { placed -> PositionedWord? in
+            guard case let .word(text, href) = placed.fragment.content else { return nil }
+            let wordFont = placed.fragment.font
+            return PositionedWord(
+                x: originX + placed.x,
+                y: originY + baseline - wordFont.ascender,
+                text: text,
+                font: wordFont,
+                color: placed.fragment.color,
+                href: href,
             )
         }
-        let maxDescent = line.map(\.font.descent).max() ?? 0
-        return PositionState(words: state.words + words, cursorY: baseline + 1.25 * maxDescent)
+        let formControls = line.compactMap { placed -> PositionedFormControl? in
+            guard case let .formControl(nodePath, text, backgroundColor, isButton) = placed.fragment.content else {
+                return nil
+            }
+            let controlFont = placed.fragment.font
+            return PositionedFormControl(
+                x: originX + placed.x,
+                y: originY + baseline - controlFont.ascender,
+                width: placed.fragment.width,
+                height: controlFont.ascender + controlFont.descent,
+                nodePath: nodePath,
+                text: text,
+                font: controlFont,
+                color: placed.fragment.color,
+                backgroundColor: backgroundColor,
+                isButton: isButton,
+            )
+        }
+        let maxDescent = line.map(\.fragment.font.descent).max() ?? 0
+        return PositionState(
+            words: state.words + words,
+            formControls: state.formControls + formControls,
+            cursorY: baseline + 1.25 * maxDescent,
+        )
     }
-    return (positioned.words, positioned.cursorY)
+    return (positioned.words, positioned.formControls, positioned.cursorY)
 }

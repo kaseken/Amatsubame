@@ -63,6 +63,19 @@ struct HTMLParserTests {
         ]))
     }
 
+    @Test func `quoted attribute values keep their spaces`() {
+        let tree = parse(#"<div style="background-color: red">hi</div>"#)
+        #expect(tree == .element(tag: "html", attributes: [:], children: [
+            .element(tag: "body", attributes: [:], children: [
+                .element(
+                    tag: "div",
+                    attributes: ["style": "background-color: red"],
+                    children: [.text("hi")],
+                ),
+            ]),
+        ]))
+    }
+
     @Test func `comments and doctype are skipped`() {
         #expect(parse("<!doctype html><!-- hi -->text") == .element(tag: "html", attributes: [:], children: [
             .element(tag: "body", attributes: [:], children: [
