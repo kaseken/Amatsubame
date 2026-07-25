@@ -1,73 +1,44 @@
 @testable import Amatsubame
-import Foundation
 import Testing
 
 @MainActor
 struct ToolbarTests {
-    @Test func `new tab button sits at the top-left corner`() {
-        let toolbar = Toolbar()
-        #expect(toolbar.newTabRect.left == 5)
-        #expect(toolbar.newTabRect.top == 5)
+    @Test func `clicking the rendered new-tab button returns newTab`() throws {
+        let commands = Toolbar.displayCommands(tabs: [], activeIndex: 0, addressBar: "", isAddressBarFocused: false)
+        let plus = try #require(commands.compactMap { $0 as? DrawText }.first { $0.text == "+" })
+        #expect(Toolbar.action(at: Point(x: plus.x + 1, y: plus.y + 1), tabCount: 0) == .newTab)
     }
 
-    @Test func `address bar spans from the back button to the right edge`() {
-        let toolbar = Toolbar()
-        #expect(toolbar.addressRect.left > toolbar.backRect.right)
-        #expect(toolbar.addressRect.right == Layout.canvasWidth - 5)
+    @Test func `clicking the rendered back button returns back`() throws {
+        let commands = Toolbar.displayCommands(tabs: [], activeIndex: 0, addressBar: "", isAddressBarFocused: false)
+        let back = try #require(commands.compactMap { $0 as? DrawText }.first { $0.text == "<" })
+        #expect(Toolbar.action(at: Point(x: back.x + 1, y: back.y + 1), tabCount: 0) == .back)
     }
 
-    @Test func `clicking the new tab button requests a new tab`() {
-        let toolbar = Toolbar()
-        let action = toolbar.click(at: Point(x: toolbar.newTabRect.x + 1, y: toolbar.newTabRect.y + 1), tabCount: 1)
-        #expect(action == .newTab)
+    @Test func `clicking a rendered tab selects it`() throws {
+        let tabs = [Tab(viewportHeight: 500), Tab(viewportHeight: 500)]
+        let commands = Toolbar.displayCommands(tabs: tabs, activeIndex: 0, addressBar: "", isAddressBarFocused: false)
+        let label = try #require(commands.compactMap { $0 as? DrawText }.first { $0.text == "Tab 1" })
+        #expect(Toolbar.action(at: Point(x: label.x + 1, y: label.y + 1), tabCount: tabs.count) == .selectTab(1))
     }
 
-    @Test func `clicking a tab selects it`() {
-        let toolbar = Toolbar()
-        let bounds = toolbar.tabRect(1)
-        let action = toolbar.click(at: Point(x: bounds.x + 1, y: bounds.y + 1), tabCount: 2)
-        #expect(action == .selectTab(1))
+    @Test func `clicking the rendered address field returns focusAddress`() throws {
+        let commands = Toolbar.displayCommands(tabs: [], activeIndex: 0, addressBar: "", isAddressBarFocused: false)
+        let field = try #require(commands.compactMap { $0 as? DrawOutline }.max { $0.width < $1.width })
+        #expect(Toolbar.action(at: Point(x: field.x + 1, y: field.y + 1), tabCount: 0) == .focusAddress)
     }
 
-    @Test func `clicking the back button requests back`() {
-        let toolbar = Toolbar()
-        let action = toolbar.click(at: Point(x: toolbar.backRect.x + 1, y: toolbar.backRect.y + 1), tabCount: 1)
-        #expect(action == .back)
+    @Test func `a click outside every control returns none`() {
+        #expect(Toolbar.action(at: Point(x: Layout.canvasWidth - 1, y: 1), tabCount: 0) == .none)
     }
 
-    @Test func `clicking the address bar focuses and clears it`() {
-        let toolbar = Toolbar()
-        toolbar.addressBar = "stale"
-        let action = toolbar.click(at: Point(x: toolbar.addressRect.x + 1, y: toolbar.addressRect.y + 1), tabCount: 1)
-        #expect(action == .focusAddress)
-        #expect(toolbar.focus == .addressBar)
-        #expect(toolbar.addressBar == "")
+    @Test func `the address field renders the typed text while editing`() {
+        let commands = Toolbar.displayCommands(tabs: [], activeIndex: 0, addressBar: "abc", isAddressBarFocused: true)
+        #expect(commands.compactMap { $0 as? DrawText }.contains { $0.text == "abc" })
     }
 
-    @Test func `keypress edits the address bar only when focused`() {
-        let toolbar = Toolbar()
-        toolbar.keypress("a")
-        #expect(toolbar.addressBar == "")
-        toolbar.focus = .addressBar
-        toolbar.keypress("a")
-        toolbar.keypress("b")
-        #expect(toolbar.addressBar == "ab")
-        toolbar.backspace()
-        #expect(toolbar.addressBar == "a")
-    }
-
-    @Test func `enter parses the typed url and clears focus`() throws {
-        let toolbar = Toolbar()
-        toolbar.focus = .addressBar
-        toolbar.addressBar = "https://example.com/"
-        let url = try #require(toolbar.enter())
-        #expect(url.absoluteString == "https://example.com/")
-        #expect(toolbar.focus == .none)
-    }
-
-    @Test func `paint renders outlines and text for a tab`() {
-        let toolbar = Toolbar()
-        let commands = toolbar.paint(tabs: [Tab(viewportHeight: 500)], activeIndex: 0)
+    @Test func `display commands include outlines and text for a tab`() {
+        let commands = Toolbar.displayCommands(tabs: [Tab(viewportHeight: 500)], activeIndex: 0, addressBar: "", isAddressBarFocused: false)
         #expect(commands.contains { $0 is DrawOutline })
         #expect(commands.contains { $0 is DrawText })
     }

@@ -1,12 +1,7 @@
 import AppKit
 
 @MainActor
-final class Toolbar {
-    enum Focus: Equatable {
-        case none
-        case addressBar
-    }
-
+enum Toolbar {
     enum Action: Equatable {
         case none
         case newTab
@@ -15,46 +10,43 @@ final class Toolbar {
         case focusAddress
     }
 
-    var focus: Focus = .none
-    var addressBar = ""
+    private static let font = Fonts.get(size: 14, weight: .regular, italic: false)
+    private static let padding = 5.0
+    private static let tabWidth = 80.0
 
-    private let font = Fonts.get(size: 14, weight: .regular, italic: false)
-    private let padding = 5.0
-    private let tabWidth = 80.0
-
-    private var fontHeight: Double {
+    private static var fontHeight: Double {
         font.ascender + font.descent
     }
 
-    private var tabBarBottom: Double {
+    private static var tabBarBottom: Double {
         fontHeight + 2 * padding
     }
 
-    private var urlBarTop: Double {
+    private static var urlBarTop: Double {
         tabBarBottom
     }
 
-    var bottom: Double {
+    static var height: Double {
         tabBarBottom + fontHeight + 2 * padding
     }
 
-    var newTabRect: Rect {
+    private static var newTabRect: Rect {
         Rect(x: padding, y: padding, width: font.width(of: "+") + 2 * padding, height: fontHeight)
     }
 
-    private var tabsStart: Double {
+    private static var tabsStart: Double {
         newTabRect.right + padding
     }
 
-    func tabRect(_ index: Int) -> Rect {
+    private static func tabRect(_ index: Int) -> Rect {
         Rect(x: tabsStart + Double(index) * tabWidth, y: 0, width: tabWidth, height: tabBarBottom)
     }
 
-    var backRect: Rect {
+    private static var backRect: Rect {
         Rect(x: padding, y: urlBarTop + padding, width: font.width(of: "<") + 2 * padding, height: fontHeight)
     }
 
-    var addressRect: Rect {
+    private static var addressRect: Rect {
         Rect(
             x: backRect.right + padding,
             y: urlBarTop + padding,
@@ -63,10 +55,10 @@ final class Toolbar {
         )
     }
 
-    func paint(tabs: [Tab], activeIndex: Int) -> [DisplayCommand] {
+    static func displayCommands(tabs: [Tab], activeIndex: Int, addressBar: String, isAddressBarFocused: Bool) -> [DisplayCommand] {
         var commands: [DisplayCommand] = [
-            DrawRect(x: 0, y: 0, width: Layout.canvasWidth, height: bottom, color: .white),
-            DrawLine(x1: 0, y1: bottom, x2: Layout.canvasWidth, y2: bottom, color: .black, thickness: 1),
+            DrawRect(x: 0, y: 0, width: Layout.canvasWidth, height: height, color: .white),
+            DrawLine(x1: 0, y1: height, x2: Layout.canvasWidth, y2: height, color: .black, thickness: 1),
         ]
 
         commands.append(outline(newTabRect))
@@ -87,7 +79,7 @@ final class Toolbar {
         commands.append(label("<", in: backRect))
 
         commands.append(outline(addressRect))
-        if focus == .addressBar {
+        if isAddressBarFocused {
             commands.append(label(addressBar, in: addressRect))
             let cursorX = addressRect.left + padding + font.width(of: addressBar)
             commands.append(DrawLine(x1: cursorX, y1: addressRect.top, x2: cursorX, y2: addressRect.bottom, color: .red, thickness: 1))
@@ -99,41 +91,21 @@ final class Toolbar {
         return commands
     }
 
-    func click(at point: Point, tabCount: Int) -> Action {
-        focus = .none
+    static func action(at point: Point, tabCount: Int) -> Action {
         if newTabRect.contains(point) { return .newTab }
         if backRect.contains(point) { return .back }
-        if addressRect.contains(point) {
-            focus = .addressBar
-            addressBar = ""
-            return .focusAddress
-        }
+        if addressRect.contains(point) { return .focusAddress }
         for index in 0 ..< tabCount where tabRect(index).contains(point) {
             return .selectTab(index)
         }
         return .none
     }
 
-    func keypress(_ character: Character) {
-        guard focus == .addressBar else { return }
-        addressBar.append(character)
-    }
-
-    func backspace() {
-        guard focus == .addressBar else { return }
-        if !addressBar.isEmpty { addressBar.removeLast() }
-    }
-
-    func enter() -> URL? {
-        defer { focus = .none }
-        return URL(string: addressBar)
-    }
-
-    private func outline(_ rect: Rect) -> DisplayCommand {
+    private static func outline(_ rect: Rect) -> DisplayCommand {
         DrawOutline(x: rect.x, y: rect.y, width: rect.width, height: rect.height, color: .black, thickness: 1)
     }
 
-    private func label(_ text: String, in rect: Rect) -> DisplayCommand {
+    private static func label(_ text: String, in rect: Rect) -> DisplayCommand {
         DrawText(x: rect.left + padding, y: rect.top, text: text, font: font, color: .black)
     }
 }

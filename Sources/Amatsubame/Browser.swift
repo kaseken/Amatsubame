@@ -4,9 +4,10 @@ import AppKit
 final class Browser {
     private let window: NSWindow
     private let canvas = CanvasView()
-    private let toolbar = Toolbar()
     private var tabs: [Tab] = []
     private var activeIndex = 0
+    private var addressBar = ""
+    private var isAddressBarFocused = false
 
     init() {
         window = NSWindow(
@@ -28,7 +29,7 @@ final class Browser {
     }
 
     func newTab(_ url: URL) {
-        let tab = Tab(viewportHeight: Layout.canvasHeight - toolbar.bottom)
+        let tab = Tab(viewportHeight: Layout.canvasHeight - Toolbar.height)
         tabs.append(tab)
         activeIndex = tabs.count - 1
         load(url)
@@ -44,40 +45,48 @@ final class Browser {
     }
 
     private func render() {
-        canvas.toolbarCommands = toolbar.paint(tabs: tabs, activeIndex: activeIndex)
+        canvas.toolbarCommands = Toolbar.displayCommands(
+            tabs: tabs, activeIndex: activeIndex, addressBar: addressBar, isAddressBarFocused: isAddressBarFocused,
+        )
         canvas.pageCommands = activeTab.commands
         canvas.scrollY = activeTab.scrollY
-        canvas.toolbarBottom = toolbar.bottom
+        canvas.toolbarBottom = Toolbar.height
         canvas.needsDisplay = true
     }
 }
 
 extension Browser: CanvasViewDelegate {
     func handleClick(at point: Point) {
-        if point.y < toolbar.bottom {
-            switch toolbar.click(at: point, tabCount: tabs.count) {
+        if point.y < Toolbar.height {
+            switch Toolbar.action(at: point, tabCount: tabs.count) {
             case .newTab:
+                isAddressBarFocused = false
                 newTab(defaultURL)
             case let .selectTab(index):
+                isAddressBarFocused = false
                 activeIndex = index
             case .back:
+                isAddressBarFocused = false
                 if let previous = activeTab.goBack() { load(previous) }
-            case .focusAddress, .none:
-                break
+            case .focusAddress:
+                isAddressBarFocused = true
+                addressBar = ""
+            case .none:
+                isAddressBarFocused = false
             }
             render()
-        } else if let destination = activeTab.click(at: point.offsetBy(dy: -toolbar.bottom)) {
+        } else if let destination = activeTab.click(at: point.offsetBy(dy: -Toolbar.height)) {
             load(destination)
         }
     }
 
     func handleKey(_ event: NSEvent) {
         switch event.specialKey {
-        case .downArrow where toolbar.focus == .none:
+        case .downArrow where !isAddressBarFocused:
             activeTab.scrollDown()
             render()
             return
-        case .upArrow where toolbar.focus == .none:
+        case .upArrow where !isAddressBarFocused:
             activeTab.scrollUp()
             render()
             return
@@ -87,15 +96,18 @@ extension Browser: CanvasViewDelegate {
 
         guard let character = event.characters?.first else { return }
         if character == "\r" || character == "\n" {
-            if let url = toolbar.enter() { load(url) }
+            if isAddressBarFocused {
+                if let url = URL(string: addressBar) { load(url) }
+                isAddressBarFocused = false
+            }
             render()
         } else if character == "\u{7F}" || character == "\u{8}" {
-            toolbar.backspace()
+            if isAddressBarFocused, !addressBar.isEmpty { addressBar.removeLast() }
             render()
-        } else if toolbar.focus == .addressBar, let scalar = character.unicodeScalars.first,
+        } else if isAddressBarFocused, let scalar = character.unicodeScalars.first,
                   scalar.value >= 0x20, scalar.value < 0x7F
         {
-            toolbar.keypress(character)
+            addressBar.append(character)
             render()
         }
     }
