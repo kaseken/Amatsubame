@@ -1,11 +1,17 @@
 import AppKit
 
-final class CanvasView: NSView {
-    var displayCommands: [DisplayCommand] = [] {
-        didSet { needsDisplay = true }
-    }
+@MainActor
+protocol CanvasViewDelegate: AnyObject {
+    func handleClick(at point: Point)
+    func handleKey(_ event: NSEvent)
+}
 
+final class CanvasView: NSView {
+    var toolbarCommands: [DisplayCommand] = []
+    var pageCommands: [DisplayCommand] = []
     var scrollY = 0.0
+    var toolbarBottom = 0.0
+    weak var delegate: CanvasViewDelegate?
 
     /// Top-left origin with y growing downward, matching the layout coordinates.
     override var isFlipped: Bool {
@@ -20,23 +26,29 @@ final class CanvasView: NSView {
         NSColor.white.setFill()
         dirtyRect.fill()
 
-        for command in displayCommands {
+        NSGraphicsContext.saveGraphicsState()
+        NSRect(x: 0, y: toolbarBottom, width: bounds.width, height: bounds.height - toolbarBottom).clip()
+        let pageOffset = NSAffineTransform()
+        pageOffset.translateX(by: 0, yBy: toolbarBottom)
+        pageOffset.concat()
+        for command in pageCommands {
             if command.top > scrollY + Layout.canvasHeight { continue }
             if command.bottom < scrollY { continue }
             command.draw(scrollY: scrollY)
         }
+        NSGraphicsContext.restoreGraphicsState()
+
+        for command in toolbarCommands {
+            command.draw(scrollY: 0)
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        delegate?.handleClick(at: Point(x: location.x, y: location.y))
     }
 
     override func keyDown(with event: NSEvent) {
-        switch event.specialKey {
-        case .downArrow:
-            scrollY += Layout.scrollStep
-            needsDisplay = true
-        case .upArrow:
-            scrollY = max(0, scrollY - Layout.scrollStep)
-            needsDisplay = true
-        default:
-            super.keyDown(with: event)
-        }
+        delegate?.handleKey(event)
     }
 }

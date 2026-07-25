@@ -16,14 +16,14 @@ private let blockElements: Set<String> = [
     "details", "summary",
 ]
 
-private struct BoxFrame {
+struct BoxFrame {
     let x: Double
     let y: Double
     let width: Double
     let height: Double
 }
 
-private enum LayoutBox {
+enum LayoutBox {
     case block(node: StyledNode, frame: BoxFrame, children: [LayoutBox])
     case inline(node: StyledNode, frame: BoxFrame, words: [PositionedWord])
 
@@ -32,44 +32,28 @@ private enum LayoutBox {
         case let .block(_, frame, _), let .inline(_, frame, _): frame
         }
     }
+
+    var height: Double {
+        frame.height
+    }
 }
 
-private struct PositionedWord {
+struct PositionedWord {
     let x: Double
     let y: Double
     let text: String
     let font: NSFont
     let color: NSColor
+    let href: String?
 }
 
-func displayCommands(for styled: StyledNode) -> [DisplayCommand] {
-    displayCommands(for: layoutDocument(styled))
-}
-
-private func layoutDocument(_ node: StyledNode) -> LayoutBox {
+func layoutDocument(_ node: StyledNode) -> LayoutBox {
     layoutBlock(
         node,
         x: Layout.horizontalEdgeMargin,
         y: Layout.verticalEdgeMargin,
         width: Layout.canvasWidth - 2 * Layout.horizontalEdgeMargin,
     )
-}
-
-private func displayCommands(for box: LayoutBox) -> [DisplayCommand] {
-    switch box {
-    case let .block(node, frame, children):
-        boxCommands(for: node, frame: frame) + children.flatMap { displayCommands(for: $0) }
-    case let .inline(node, frame, words):
-        boxCommands(for: node, frame: frame)
-            + words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font, color: $0.color) }
-    }
-}
-
-private func boxCommands(for node: StyledNode, frame: BoxFrame) -> [DisplayCommand] {
-    guard case .element = node.node,
-          let background = node.style["background-color"], background != "transparent"
-    else { return [] }
-    return [DrawRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height, color: namedColor(background))]
 }
 
 private enum LayoutMode {
@@ -128,53 +112,24 @@ private func pixels(_ value: String?) -> Double? {
     return Double(value.dropLast(2))
 }
 
-func namedColor(_ value: String?) -> NSColor {
-    guard let value else { return .black }
-    if value.hasPrefix("#") { return hexColor(value) ?? .black }
-    return switch value {
-    case "blue": .blue
-    case "red": .red
-    case "green": .green
-    case "yellow": .yellow
-    case "orange": .orange
-    case "purple": .purple
-    case "brown": .brown
-    case "cyan": .cyan
-    case "magenta": .magenta
-    case "gray", "grey": .gray
-    case "white": .white
-    default: .black
-    }
-}
-
-private func hexColor(_ value: String) -> NSColor? {
-    let digits = value.dropFirst()
-    guard digits.count == 6, let rgb = Int(digits, radix: 16) else { return nil }
-    return NSColor(
-        red: Double((rgb >> 16) & 0xFF) / 255,
-        green: Double((rgb >> 8) & 0xFF) / 255,
-        blue: Double(rgb & 0xFF) / 255,
-        alpha: 1,
-    )
-}
-
 private enum InlineToken {
-    case word(String, NSFont, NSColor)
+    case word(String, NSFont, NSColor, String?)
     case lineBreak
 }
 
 private let nonRenderedTags: Set<String> = ["head", "title", "style", "script"]
 
-private func inlineTokens(_ node: StyledNode) -> [InlineToken] {
+private func inlineTokens(_ node: StyledNode, linkHref: String? = nil) -> [InlineToken] {
     switch node.node {
     case let .text(text):
         let wordFont = font(for: node.style)
-        let color = namedColor(node.style["color"])
-        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), wordFont, color) }
-    case let .element(tag, _, _):
+        let wordColor = color(for: node.style["color"])
+        return text.split(whereSeparator: \.isWhitespace).map { .word(String($0), wordFont, wordColor, linkHref) }
+    case let .element(tag, attributes, _):
         if tag == "br" { return [.lineBreak] }
         if nonRenderedTags.contains(tag) { return [] }
-        return node.children.flatMap(inlineTokens)
+        let enclosingHref = tag == "a" ? (attributes["href"] ?? linkHref) : linkHref
+        return node.children.flatMap { inlineTokens($0, linkHref: enclosingHref) }
     }
 }
 
@@ -183,6 +138,7 @@ private struct WrappedWord {
     let word: String
     let font: NSFont
     let color: NSColor
+    let href: String?
 }
 
 private struct WrapState {
@@ -204,14 +160,14 @@ private func wrapIntoLines(_ node: StyledNode, width: Double) -> [[WrappedWord]]
         switch token {
         case .lineBreak:
             return state.breakingLine()
-        case let .word(word, font, color):
+        case let .word(word, font, color, href):
             let wordWidth = font.width(of: word)
             let wrapped = if state.cursorX + wordWidth > width {
                 state.breakingLine()
             } else {
                 state
             }
-            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font, color: color)
+            let placement = WrappedWord(x: wrapped.cursorX, word: word, font: font, color: color, href: href)
             return WrapState(
                 lines: wrapped.lines,
                 currentLine: wrapped.currentLine + [placement],
@@ -241,6 +197,7 @@ private func positionLines(
                 text: word.word,
                 font: word.font,
                 color: word.color,
+                href: word.href,
             )
         }
         let maxDescent = line.map(\.font.descent).max() ?? 0

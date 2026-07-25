@@ -17,7 +17,7 @@ struct Amatsubame {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         let browser = Browser()
-        browser.load(url)
+        browser.newTab(url)
         app.activate(ignoringOtherApps: true)
         app.run()
     }
