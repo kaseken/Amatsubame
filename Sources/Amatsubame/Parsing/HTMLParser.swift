@@ -49,7 +49,7 @@ private let headTags: Set<String> = [
 ]
 
 private func getAttributes(_ text: String) -> (tag: String, attributes: [String: String]) {
-    let parts = text.split(whereSeparator: \.isWhitespace)
+    let parts = splitAttributes(text)
     // NOTE: Falling back to "" handles <>.
     let tag = parts.first.map { $0.lowercased() } ?? ""
     var attributes: [String: String] = [:]
@@ -63,6 +63,30 @@ private func getAttributes(_ text: String) -> (tag: String, attributes: [String:
         attributes[key] = value
     }
     return (tag, attributes)
+}
+
+private func splitAttributes(_ text: String) -> [String] {
+    var parts: [String] = []
+    var current = ""
+    var openQuote: Character?
+    for character in text {
+        if let quote = openQuote {
+            current.append(character)
+            if character == quote { openQuote = nil }
+        } else if character == "\"" || character == "'" {
+            openQuote = character
+            current.append(character)
+        } else if character.isWhitespace {
+            if !current.isEmpty {
+                parts.append(current)
+                current = ""
+            }
+        } else {
+            current.append(character)
+        }
+    }
+    if !current.isEmpty { parts.append(current) }
+    return parts
 }
 
 private extension Substring {
