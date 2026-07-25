@@ -36,4 +36,30 @@ struct HTMLNodeTests {
           "b"
         """)
     }
+
+    @Test func `node(at:) walks child indices to the addressed node`() {
+        #expect(sampleTree.node(at: [0, 0]) == .element(
+            tag: "input", attributes: ["name": "q", "value": "Ada"], children: [],
+        ))
+        #expect(sampleTree.node(at: []) == sampleTree)
+        #expect(sampleTree.node(at: [9]) == nil)
+    }
+
+    @Test func `replacingAttribute updates one node without mutating the original`() {
+        let updated = sampleTree.replacingAttribute("value", with: "Grace", at: [0, 0])
+        #expect(updated.node(at: [0, 0]) == .element(
+            tag: "input", attributes: ["name": "q", "value": "Grace"], children: [],
+        ))
+        #expect(updated.node(at: [0, 1]) == sampleTree.node(at: [0, 1]))
+        #expect(sampleTree.node(at: [0, 0]) == .element(
+            tag: "input", attributes: ["name": "q", "value": "Ada"], children: [],
+        ))
+    }
 }
+
+private let sampleTree = HTMLNode.element(tag: "html", attributes: [:], children: [
+    .element(tag: "body", attributes: [:], children: [
+        .element(tag: "input", attributes: ["name": "q", "value": "Ada"], children: []),
+        .element(tag: "input", attributes: ["name": "lang", "value": "sv"], children: []),
+    ]),
+])

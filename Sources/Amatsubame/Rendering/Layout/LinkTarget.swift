@@ -9,7 +9,7 @@ func linkTargets(for box: LayoutBox) -> [LinkTarget] {
     switch box {
     case let .block(_, _, children):
         children.flatMap(linkTargets)
-    case let .inline(_, _, words):
+    case let .inline(_, _, words, _):
         words.compactMap { word in
             guard let href = word.href else { return nil }
             let rect = Rect(

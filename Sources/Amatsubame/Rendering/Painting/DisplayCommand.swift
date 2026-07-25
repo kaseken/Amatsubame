@@ -101,16 +101,33 @@ struct DrawRectOutline: DisplayCommand {
     }
 }
 
-func displayCommands(for box: LayoutBox) -> [DisplayCommand] {
+func displayCommands(for box: LayoutBox, focusedInputPath: NodePath? = nil) -> [DisplayCommand] {
     switch box {
     case let .block(node, frame, children):
         let background = backgroundCommand(for: node, frame: frame)
-        return (background.map { [$0] } ?? []) + children.flatMap(displayCommands)
-    case let .inline(node, frame, words):
+        return (background.map { [$0] } ?? []) + children.flatMap { displayCommands(for: $0, focusedInputPath: focusedInputPath) }
+    case let .inline(node, frame, words, formControls):
         let background = backgroundCommand(for: node, frame: frame)
         let texts = words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font, color: $0.color) }
-        return (background.map { [$0] } ?? []) + texts
+        let formControlDrawing = formControls.flatMap { formControlCommands(for: $0, focused: $0.nodePath == focusedInputPath) }
+        return (background.map { [$0] } ?? []) + texts + formControlDrawing
     }
+}
+
+private func formControlCommands(for control: PositionedFormControl, focused: Bool) -> [DisplayCommand] {
+    let background = DrawRect(
+        x: control.x, y: control.y, width: control.width, height: control.height, color: control.backgroundColor,
+    )
+    let label = DrawText(x: control.x, y: control.y, text: control.text, font: control.font, color: control.color)
+    let cursor: [DisplayCommand] = focused ? [caretCommand(for: control)] : []
+    return [background, label] + cursor
+}
+
+private func caretCommand(for control: PositionedFormControl) -> DisplayCommand {
+    let caretX = control.x + control.font.width(of: control.text)
+    return DrawLine(
+        x1: caretX, y1: control.y, x2: caretX, y2: control.y + control.height, color: .black, thickness: 1,
+    )
 }
 
 private func backgroundCommand(for node: StyledNode, frame: BoxFrame) -> DisplayCommand? {
