@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class Chrome {
+final class Toolbar {
     enum Focus: Equatable {
         case none
         case addressBar
