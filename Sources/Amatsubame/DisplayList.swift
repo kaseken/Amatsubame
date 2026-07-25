@@ -1,33 +1,14 @@
 import AppKit
 
-struct LinkTarget {
-    let rect: Rect
-    let href: String
-}
-
-func displayCommands(for box: LayoutBox) -> (commands: [DisplayCommand], links: [LinkTarget]) {
+func displayCommands(for box: LayoutBox) -> [DisplayCommand] {
     switch box {
     case let .block(node, frame, children):
-        let childResults = children.map(displayCommands)
         let background = backgroundCommand(for: node, frame: frame)
-        return (
-            (background.map { [$0] } ?? []) + childResults.flatMap(\.commands),
-            childResults.flatMap(\.links),
-        )
+        return (background.map { [$0] } ?? []) + children.flatMap(displayCommands)
     case let .inline(node, frame, words):
-        let texts = words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font, color: $0.color) }
-        let links = words.compactMap { word -> LinkTarget? in
-            guard let href = word.href else { return nil }
-            let rect = Rect(
-                x: word.x,
-                y: word.y,
-                width: word.font.width(of: word.text),
-                height: word.font.ascender + word.font.descent,
-            )
-            return LinkTarget(rect: rect, href: href)
-        }
         let background = backgroundCommand(for: node, frame: frame)
-        return ((background.map { [$0] } ?? []) + texts, links)
+        let texts = words.map { DrawText(x: $0.x, y: $0.y, text: $0.text, font: $0.font, color: $0.color) }
+        return (background.map { [$0] } ?? []) + texts
     }
 }
 

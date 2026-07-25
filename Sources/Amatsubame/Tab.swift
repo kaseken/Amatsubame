@@ -22,9 +22,8 @@ final class Tab {
             let embeddedRules = embeddedStyleSheets(tree).flatMap { CSSParser($0).parse() }
             let styled = style(tree, rules: sortedByCascade(defaultStyleRules + linkedRules + embeddedRules))
             let box = layoutDocument(styled)
-            let (commands, links) = displayCommands(for: box)
-            self.commands = commands
-            self.links = links
+            commands = displayCommands(for: box)
+            links = linkTargets(for: box)
             documentHeight = box.height
             self.url = url
             history.append(url)
