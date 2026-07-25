@@ -1,5 +1,6 @@
 @testable import Amatsubame
 import Foundation
+import LocalHTTPServer
 import Testing
 
 struct HTTPClientPostTests {

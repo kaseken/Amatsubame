@@ -1,22 +1,29 @@
 import Foundation
 import Network
 
-final class LocalHTTPServer: @unchecked Sendable {
-    struct Request {
-        let method: String
-        let path: String
-        let headers: [String: String]
-        let body: String
+public final class LocalHTTPServer: @unchecked Sendable {
+    public struct Request {
+        public let method: String
+        public let path: String
+        public let headers: [String: String]
+        public let body: String
     }
 
-    struct Response {
-        let status: Int
-        let reason: String
-        let body: String
+    public struct Response {
+        public let status: Int
+        public let reason: String
+        public let contentType: String
+        public let body: String
 
-        init(status: Int = 200, reason: String = "OK", body: String) {
+        public init(
+            status: Int = 200,
+            reason: String = "OK",
+            contentType: String = "text/html; charset=utf-8",
+            body: String,
+        ) {
             self.status = status
             self.reason = reason
+            self.contentType = contentType
             self.body = body
         }
     }
@@ -32,20 +39,24 @@ final class LocalHTTPServer: @unchecked Sendable {
     private var receivedRequests: [Request] = []
     private var didResumeStart = false
 
-    init(handler: @escaping @Sendable (Request) -> Response) throws {
+    public init(port: UInt16? = nil, handler: @escaping @Sendable (Request) -> Response) throws {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
-        listener = try NWListener(using: parameters)
+        if let port, let endpointPort = NWEndpoint.Port(rawValue: port) {
+            listener = try NWListener(using: parameters, on: endpointPort)
+        } else {
+            listener = try NWListener(using: parameters)
+        }
         self.handler = handler
     }
 
-    var requests: [Request] {
+    public var requests: [Request] {
         lock.lock()
         defer { lock.unlock() }
         return receivedRequests
     }
 
-    func start() async throws -> UInt16 {
+    public func start() async throws -> UInt16 {
         listener.newConnectionHandler = { [weak self] connection in
             self?.handle(connection)
         }
@@ -72,7 +83,7 @@ final class LocalHTTPServer: @unchecked Sendable {
         }
     }
 
-    func stop() {
+    public func stop() {
         listener.cancel()
     }
 
@@ -134,7 +145,7 @@ final class LocalHTTPServer: @unchecked Sendable {
         let head =
             "HTTP/1.1 \(response.status) \(response.reason)\r\n"
                 + "Content-Length: \(bodyData.count)\r\n"
-                + "Content-Type: text/html; charset=utf-8\r\n"
+                + "Content-Type: \(response.contentType)\r\n"
                 + "Connection: close\r\n\r\n"
         var responseData = Data(head.utf8)
         responseData.append(bodyData)
