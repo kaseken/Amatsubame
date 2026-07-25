@@ -102,7 +102,7 @@ enum Toolbar {
     }
 
     private static func outline(_ rect: Rect) -> DisplayCommand {
-        DrawOutline(x: rect.x, y: rect.y, width: rect.width, height: rect.height, color: .black, thickness: 1)
+        DrawRectOutline(x: rect.x, y: rect.y, width: rect.width, height: rect.height, color: .black, thickness: 1)
     }
 
     private static func label(_ text: String, in rect: Rect) -> DisplayCommand {

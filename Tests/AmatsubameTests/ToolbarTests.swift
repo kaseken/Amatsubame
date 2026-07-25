@@ -24,7 +24,7 @@ struct ToolbarTests {
 
     @Test func `clicking the rendered address field returns focusAddress`() throws {
         let commands = Toolbar.displayCommands(tabs: [], activeIndex: 0, addressBar: "", isAddressBarFocused: false)
-        let field = try #require(commands.compactMap { $0 as? DrawOutline }.max { $0.width < $1.width })
+        let field = try #require(commands.compactMap { $0 as? DrawRectOutline }.max { $0.width < $1.width })
         #expect(Toolbar.action(at: Point(x: field.x + 1, y: field.y + 1), tabCount: 0) == .focusAddress)
     }
 
@@ -39,7 +39,7 @@ struct ToolbarTests {
 
     @Test func `display commands include outlines and text for a tab`() {
         let commands = Toolbar.displayCommands(tabs: [Tab(viewportHeight: 500)], activeIndex: 0, addressBar: "", isAddressBarFocused: false)
-        #expect(commands.contains { $0 is DrawOutline })
+        #expect(commands.contains { $0 is DrawRectOutline })
         #expect(commands.contains { $0 is DrawText })
     }
 }

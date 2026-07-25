@@ -77,7 +77,7 @@ struct DrawLine: DisplayCommand {
     }
 }
 
-struct DrawOutline: DisplayCommand {
+struct DrawRectOutline: DisplayCommand {
     let x: Double
     let y: Double
     let width: Double
