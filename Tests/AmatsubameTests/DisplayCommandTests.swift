@@ -2,7 +2,7 @@
 import AppKit
 import Testing
 
-struct DisplayListTests {
+struct DisplayCommandTests {
     @Test func `single word near origin`() throws {
         let box = layoutDocument(style(parse("hello"), rules: sortedByCascade(defaultStyleRules)))
         let list = try displayCommands(for: box).map { try #require($0 as? DrawText) }
