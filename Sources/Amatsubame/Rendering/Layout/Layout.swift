@@ -77,17 +77,20 @@ private enum LayoutMode {
 }
 
 private func layoutBlock(_ node: StyledNode, nodePath: NodePath, x: Double, y: Double, width: Double) -> LayoutBox {
+    let boxWidth = pixels(node.style["width"]) ?? width
     switch layoutMode(node) {
     case .block:
-        let children = layoutStackedChildren(node.children, parentPath: nodePath, startIndex: 0, x: x, y: y, width: width)
-        let height = children.reduce(0) { $0 + $1.frame.height }
-        return .block(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), children: children)
+        let children = layoutStackedChildren(node.children, parentPath: nodePath, startIndex: 0, x: x, y: y, width: boxWidth)
+        let contentHeight = children.reduce(0) { $0 + $1.frame.height }
+        let boxHeight = pixels(node.style["height"]) ?? contentHeight
+        return .block(node: node, frame: BoxFrame(x: x, y: y, width: boxWidth, height: boxHeight), children: children)
     case .inline:
-        let lines = wrapIntoLines(node, nodePath: nodePath, width: width)
-        let (words, formControls, height) = positionLines(lines, originX: x, originY: y)
+        let lines = wrapIntoLines(node, nodePath: nodePath, width: boxWidth)
+        let (words, formControls, contentHeight) = positionLines(lines, originX: x, originY: y)
+        let boxHeight = pixels(node.style["height"]) ?? contentHeight
         return .inline(
             node: node,
-            frame: BoxFrame(x: x, y: y, width: width, height: height),
+            frame: BoxFrame(x: x, y: y, width: boxWidth, height: boxHeight),
             words: words,
             formControls: formControls,
         )

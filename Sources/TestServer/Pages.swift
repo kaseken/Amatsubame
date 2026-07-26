@@ -9,6 +9,10 @@ enum Pages {
         resource(named: "rendering", withExtension: "html")
     }
 
+    static func boxDimensions() -> String {
+        resource(named: "box-dimensions", withExtension: "html")
+    }
+
     static func form() -> String {
         resource(named: "form", withExtension: "html")
     }
