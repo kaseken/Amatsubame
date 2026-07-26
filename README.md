@@ -2,6 +2,8 @@
 
 A toy web browser implemented in Swift, following [Web Browser Engineering](https://browser.engineering/) by Pavel Panchekha & Chris Harrelson.
 
+<img src="docs/screenshot.png" alt="Amatsubame rendering a Google-style search page" width="640">
+
 ## Build
 
 ```bash
@@ -24,6 +26,10 @@ another:
 swift run TestServer                          # default port 8000; for another port: swift run TestServer 9000
 swift run Amatsubame http://127.0.0.1:8000/   # in another terminal
 ```
+
+Open `http://127.0.0.1:8000/` for the index of test pages. The
+`/google` page shown in the screenshot above is a good end-to-end showcase of
+the current rendering features.
 
 ## Requirements
 

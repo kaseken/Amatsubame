@@ -17,6 +17,10 @@ enum Pages {
         resource(named: "form", withExtension: "html")
     }
 
+    static func google() -> String {
+        resource(named: "google", withExtension: "html")
+    }
+
     static func posted(_ message: String) -> String {
         resource(named: "posted", withExtension: "html")
             .replacingOccurrences(of: "<!-- message -->", with: escaped(message))
