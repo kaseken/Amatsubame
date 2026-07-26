@@ -8,11 +8,14 @@ private func layoutControls(_ html: String) -> (tree: HTMLNode, controls: [FormC
 }
 
 struct InputLayoutTests {
-    @Test func `input and button lay out as fixed-width inline controls`() {
+    @Test func `input is a fixed-width field and the button fits its label`() throws {
         let (_, controls) = layoutControls("<form action=/x><input name=q><button>Go</button></form>")
         #expect(controls.count == 2)
-        #expect(controls.allSatisfy { $0.rect.width == inputWidth })
         #expect(controls.map(\.isButton) == [false, true])
+        let input = try #require(controls.first { !$0.isButton })
+        let button = try #require(controls.first { $0.isButton })
+        #expect(input.rect.width == inputWidth)
+        #expect(button.rect.width < inputWidth)
     }
 
     @Test func `control paths resolve back to their input and button nodes`() {

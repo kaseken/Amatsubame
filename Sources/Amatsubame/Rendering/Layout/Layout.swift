@@ -77,17 +77,20 @@ private enum LayoutMode {
 }
 
 private func layoutBlock(_ node: StyledNode, nodePath: NodePath, x: Double, y: Double, width: Double) -> LayoutBox {
+    let boxWidth = pixels(node.style["width"]) ?? width
     switch layoutMode(node) {
     case .block:
-        let children = layoutStackedChildren(node.children, parentPath: nodePath, startIndex: 0, x: x, y: y, width: width)
-        let height = children.reduce(0) { $0 + $1.frame.height }
-        return .block(node: node, frame: BoxFrame(x: x, y: y, width: width, height: height), children: children)
+        let children = layoutStackedChildren(node.children, parentPath: nodePath, startIndex: 0, x: x, y: y, width: boxWidth)
+        let contentHeight = children.reduce(0) { $0 + $1.frame.height }
+        let boxHeight = pixels(node.style["height"]) ?? contentHeight
+        return .block(node: node, frame: BoxFrame(x: x, y: y, width: boxWidth, height: boxHeight), children: children)
     case .inline:
-        let lines = wrapIntoLines(node, nodePath: nodePath, width: width)
-        let (words, formControls, height) = positionLines(lines, originX: x, originY: y)
+        let lines = wrapIntoLines(node, nodePath: nodePath, width: boxWidth)
+        let (words, formControls, contentHeight) = positionLines(lines, originX: x, originY: y)
+        let boxHeight = pixels(node.style["height"]) ?? contentHeight
         return .inline(
             node: node,
-            frame: BoxFrame(x: x, y: y, width: width, height: height),
+            frame: BoxFrame(x: x, y: y, width: boxWidth, height: boxHeight),
             words: words,
             formControls: formControls,
         )
@@ -138,6 +141,8 @@ private func pixels(_ value: String?) -> Double? {
 }
 
 let inputWidth = 200.0
+let formControlHorizontalPadding = 8.0
+let formControlVerticalPadding = 4.0
 
 private struct InlineFragment {
     enum Content {
@@ -192,15 +197,18 @@ private func formControlFragment(
     _ node: StyledNode, tag: String, attributes: [String: String], nodePath: NodePath,
 ) -> InlineFragment {
     let text = tag == "input" ? (attributes["value"] ?? "") : textContent(node)
+    let controlFont = font(for: node.style)
+    let isButton = tag == "button"
+    let width = isButton ? controlFont.width(of: text) + 2 * formControlHorizontalPadding : inputWidth
     return InlineFragment(
         content: .formControl(
             nodePath: nodePath,
             text: text,
             backgroundColor: color(for: node.style["background-color"]),
-            isButton: tag == "button",
+            isButton: isButton,
         ),
-        width: inputWidth,
-        font: font(for: node.style),
+        width: width,
+        font: controlFont,
         color: color(for: node.style["color"]),
     )
 }
@@ -286,9 +294,9 @@ private func positionLines(
             let controlFont = placed.fragment.font
             return PositionedFormControl(
                 x: originX + placed.x,
-                y: originY + baseline - controlFont.ascender,
+                y: originY + baseline - controlFont.ascender - formControlVerticalPadding,
                 width: placed.fragment.width,
-                height: controlFont.ascender + controlFont.descent,
+                height: controlFont.ascender + controlFont.descent + 2 * formControlVerticalPadding,
                 nodePath: nodePath,
                 text: text,
                 font: controlFont,

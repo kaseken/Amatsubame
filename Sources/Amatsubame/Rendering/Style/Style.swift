@@ -18,8 +18,8 @@ i { font-style: italic; }
 b { font-weight: bold; }
 small { font-size: 90%; }
 big { font-size: 110%; }
-input { background-color: lightblue; }
-button { background-color: orange; }
+input { background-color: white; }
+button { background-color: #e9e9ed; }
 """
 
 let defaultStyleRules: [CSSRule] = CSSParser(defaultStyleSheet).parse()

@@ -141,6 +141,14 @@ struct DisplayCommandTests {
         #expect(item.color == color(for: "blue"))
     }
 
+    @Test func `form controls are drawn with a border`() throws {
+        let box = layoutDocument(style(parse("<form action=/x><input name=q><button>Go</button></form>"), rules: sortedByCascade(defaultStyleRules)))
+        let outlines = displayCommands(for: box).compactMap { $0 as? DrawRectOutline }
+        #expect(outlines.count == 2)
+        let button = try #require(outlines.min(by: { $0.width < $1.width }))
+        #expect(button.width < inputWidth)
+    }
+
     @Test func `background-color style paints a matching rectangle`() throws {
         let box = layoutDocument(style(parse(#"<div style="background-color:blue">x</div>"#), rules: sortedByCascade(defaultStyleRules)))
         let commands = displayCommands(for: box)

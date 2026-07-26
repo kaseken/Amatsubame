@@ -15,6 +15,8 @@ struct Site {
             LocalHTTPServer.Response(body: Pages.index())
         case ("GET", "/rendering"):
             LocalHTTPServer.Response(body: Pages.rendering())
+        case ("GET", "/box-dimensions"):
+            LocalHTTPServer.Response(body: Pages.boxDimensions())
         case ("GET", "/form"):
             LocalHTTPServer.Response(body: Pages.form())
         case ("POST", "/messages"):
