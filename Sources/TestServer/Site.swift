@@ -19,6 +19,8 @@ struct Site {
             LocalHTTPServer.Response(body: Pages.boxDimensions())
         case ("GET", "/form"):
             LocalHTTPServer.Response(body: Pages.form())
+        case ("GET", "/google"):
+            LocalHTTPServer.Response(body: Pages.google())
         case ("POST", "/messages"):
             LocalHTTPServer.Response(body: Pages.posted(decodedMessage(from: request.body) ?? ""))
         case let ("GET", path) where jsPages.contains(path):
