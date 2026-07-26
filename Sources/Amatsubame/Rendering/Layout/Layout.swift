@@ -141,6 +141,8 @@ private func pixels(_ value: String?) -> Double? {
 }
 
 let inputWidth = 200.0
+let formControlHorizontalPadding = 8.0
+let formControlVerticalPadding = 4.0
 
 private struct InlineFragment {
     enum Content {
@@ -195,15 +197,18 @@ private func formControlFragment(
     _ node: StyledNode, tag: String, attributes: [String: String], nodePath: NodePath,
 ) -> InlineFragment {
     let text = tag == "input" ? (attributes["value"] ?? "") : textContent(node)
+    let controlFont = font(for: node.style)
+    let isButton = tag == "button"
+    let width = isButton ? controlFont.width(of: text) + 2 * formControlHorizontalPadding : inputWidth
     return InlineFragment(
         content: .formControl(
             nodePath: nodePath,
             text: text,
             backgroundColor: color(for: node.style["background-color"]),
-            isButton: tag == "button",
+            isButton: isButton,
         ),
-        width: inputWidth,
-        font: font(for: node.style),
+        width: width,
+        font: controlFont,
         color: color(for: node.style["color"]),
     )
 }
@@ -289,9 +294,9 @@ private func positionLines(
             let controlFont = placed.fragment.font
             return PositionedFormControl(
                 x: originX + placed.x,
-                y: originY + baseline - controlFont.ascender,
+                y: originY + baseline - controlFont.ascender - formControlVerticalPadding,
                 width: placed.fragment.width,
-                height: controlFont.ascender + controlFont.descent,
+                height: controlFont.ascender + controlFont.descent + 2 * formControlVerticalPadding,
                 nodePath: nodePath,
                 text: text,
                 font: controlFont,

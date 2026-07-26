@@ -114,19 +114,32 @@ func displayCommands(for box: LayoutBox, focusedInputPath: NodePath? = nil) -> [
     }
 }
 
+private let formControlBorderColor = NSColor(white: 0.55, alpha: 1)
+
 private func formControlCommands(for control: PositionedFormControl, focused: Bool) -> [DisplayCommand] {
     let background = DrawRect(
         x: control.x, y: control.y, width: control.width, height: control.height, color: control.backgroundColor,
     )
-    let label = DrawText(x: control.x, y: control.y, text: control.text, font: control.font, color: control.color)
+    let border = DrawRectOutline(
+        x: control.x, y: control.y, width: control.width, height: control.height,
+        color: formControlBorderColor, thickness: 1,
+    )
+    let textHeight = control.font.ascender + control.font.descent
+    let labelX = control.isButton
+        ? control.x + (control.width - control.font.width(of: control.text)) / 2
+        : control.x + formControlHorizontalPadding
+    let labelY = control.y + (control.height - textHeight) / 2
+    let label = DrawText(x: labelX, y: labelY, text: control.text, font: control.font, color: control.color)
     let cursor: [DisplayCommand] = focused ? [caretCommand(for: control)] : []
-    return [background, label] + cursor
+    return [background, border, label] + cursor
 }
 
 private func caretCommand(for control: PositionedFormControl) -> DisplayCommand {
-    let caretX = control.x + control.font.width(of: control.text)
+    let caretX = control.x + formControlHorizontalPadding + control.font.width(of: control.text)
+    let textHeight = control.font.ascender + control.font.descent
+    let caretTop = control.y + (control.height - textHeight) / 2
     return DrawLine(
-        x1: caretX, y1: control.y, x2: caretX, y2: control.y + control.height, color: .black, thickness: 1,
+        x1: caretX, y1: caretTop, x2: caretX, y2: caretTop + textHeight, color: .black, thickness: 1,
     )
 }
 
