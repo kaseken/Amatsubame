@@ -59,6 +59,33 @@ struct LayoutTests {
         #expect(narrow.frame.height > wide.frame.height)
     }
 
+    private func words(of box: LayoutBox) -> [PositionedWord] {
+        if case let .inline(_, _, words, _) = box { return words }
+        return []
+    }
+
+    @Test func `text-align center offsets words to the right of the left edge`() {
+        let centered = childBoxes(of: layout(#"<div style="text-align: center">hi</div>"#))[0]
+        let left = childBoxes(of: layout("<div>hi</div>"))[0]
+        let centeredWord = words(of: childBoxes(of: centered)[0])[0]
+        let leftWord = words(of: childBoxes(of: left)[0])[0]
+        #expect(centeredWord.x > leftWord.x)
+    }
+
+    @Test func `text-align center inherits into a nested block`() {
+        let outer = childBoxes(of: layout(#"<div style="text-align: center"><p>hi</p></div>"#))[0]
+        let paragraph = childBoxes(of: childBoxes(of: outer)[0])[0]
+        let word = words(of: paragraph)[0]
+        #expect(word.x > paragraph.frame.x)
+    }
+
+    @Test func `margin auto centers a fixed-width block within its parent`() {
+        let body = childBoxes(of: layout(#"<div style="width: 200px; margin: auto">hi</div>"#))[0]
+        let div = childBoxes(of: body)[0]
+        #expect(div.frame.width == 200)
+        #expect(div.frame.x == body.frame.x + (body.frame.width - 200) / 2)
+    }
+
     @Test func `a block without explicit dimensions fills the width and fits its content`() {
         let body = childBoxes(of: layout("<div>hi</div>"))[0]
         let div = childBoxes(of: body)[0]
