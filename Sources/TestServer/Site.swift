@@ -17,6 +17,10 @@ struct Site {
             LocalHTTPServer.Response(body: Pages.rendering())
         case ("GET", "/box-dimensions"):
             LocalHTTPServer.Response(body: Pages.boxDimensions())
+        case ("GET", "/text-align-center"):
+            LocalHTTPServer.Response(body: Pages.textAlignCenter())
+        case ("GET", "/horizontal-centering"):
+            LocalHTTPServer.Response(body: Pages.horizontalCentering())
         case ("GET", "/form"):
             LocalHTTPServer.Response(body: Pages.form())
         case ("GET", "/google"):

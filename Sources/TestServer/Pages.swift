@@ -13,6 +13,14 @@ enum Pages {
         resource(named: "box-dimensions", withExtension: "html")
     }
 
+    static func textAlignCenter() -> String {
+        resource(named: "text-align-center", withExtension: "html")
+    }
+
+    static func horizontalCentering() -> String {
+        resource(named: "horizontal-centering", withExtension: "html")
+    }
+
     static func form() -> String {
         resource(named: "form", withExtension: "html")
     }

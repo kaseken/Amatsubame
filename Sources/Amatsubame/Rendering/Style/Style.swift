@@ -9,6 +9,7 @@ let inheritedDefaults: [String: String] = [
     "font-style": "normal",
     "font-weight": "normal",
     "color": "black",
+    "text-align": "left",
 ]
 
 private let defaultStyleSheet = """

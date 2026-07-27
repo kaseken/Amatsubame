@@ -78,19 +78,22 @@ private enum LayoutMode {
 
 private func layoutBlock(_ node: StyledNode, nodePath: NodePath, x: Double, y: Double, width: Double) -> LayoutBox {
     let boxWidth = pixels(node.style["width"]) ?? width
+    let boxX = node.style["margin"] == "auto" ? x + max(0, (width - boxWidth) / 2) : x
     switch layoutMode(node) {
     case .block:
-        let children = layoutStackedChildren(node.children, parentPath: nodePath, startIndex: 0, x: x, y: y, width: boxWidth)
+        let children = layoutStackedChildren(node.children, parentPath: nodePath, startIndex: 0, x: boxX, y: y, width: boxWidth)
         let contentHeight = children.reduce(0) { $0 + $1.frame.height }
         let boxHeight = pixels(node.style["height"]) ?? contentHeight
-        return .block(node: node, frame: BoxFrame(x: x, y: y, width: boxWidth, height: boxHeight), children: children)
+        return .block(node: node, frame: BoxFrame(x: boxX, y: y, width: boxWidth, height: boxHeight), children: children)
     case .inline:
         let lines = wrapIntoLines(node, nodePath: nodePath, width: boxWidth)
-        let (words, formControls, contentHeight) = positionLines(lines, originX: x, originY: y)
+        let (words, formControls, contentHeight) = positionLines(
+            lines, originX: boxX, originY: y, width: boxWidth, alignment: node.style["text-align"],
+        )
         let boxHeight = pixels(node.style["height"]) ?? contentHeight
         return .inline(
             node: node,
-            frame: BoxFrame(x: x, y: y, width: boxWidth, height: boxHeight),
+            frame: BoxFrame(x: boxX, y: y, width: boxWidth, height: boxHeight),
             words: words,
             formControls: formControls,
         )
@@ -268,17 +271,19 @@ private struct PositionState {
 }
 
 private func positionLines(
-    _ lines: [[WrappedFragment]], originX: Double, originY: Double,
+    _ lines: [[WrappedFragment]], originX: Double, originY: Double, width: Double, alignment: String?,
 ) -> (words: [PositionedWord], formControls: [PositionedFormControl], height: Double) {
     let start = PositionState(words: [], formControls: [], cursorY: 0)
     let positioned = lines.reduce(start) { state, line in
         let maxAscent = line.map(\.fragment.font.ascender).max() ?? 0
         let baseline = state.cursorY + 1.25 * maxAscent
+        let lineWidth = line.map { $0.x + $0.fragment.width }.max() ?? 0
+        let alignmentOffset = alignment == "center" ? max(0, (width - lineWidth) / 2) : 0
         let words = line.compactMap { placed -> PositionedWord? in
             guard case let .word(text, href, linkPath) = placed.fragment.content else { return nil }
             let wordFont = placed.fragment.font
             return PositionedWord(
-                x: originX + placed.x,
+                x: originX + alignmentOffset + placed.x,
                 y: originY + baseline - wordFont.ascender,
                 text: text,
                 font: wordFont,
@@ -293,7 +298,7 @@ private func positionLines(
             }
             let controlFont = placed.fragment.font
             return PositionedFormControl(
-                x: originX + placed.x,
+                x: originX + alignmentOffset + placed.x,
                 y: originY + baseline - controlFont.ascender - formControlVerticalPadding,
                 width: placed.fragment.width,
                 height: controlFont.ascender + controlFont.descent + 2 * formControlVerticalPadding,
